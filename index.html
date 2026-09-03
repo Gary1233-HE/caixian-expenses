@@ -1,0 +1,1329 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#0F766E">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="支出記錄">
+<title>支出記錄 · 採鮮農產行</title>
+<link rel="manifest" href="data:application/json;charset=utf-8,%7B%22name%22%3A%22%E6%94%AF%E5%87%BA%E8%A8%98%E9%8C%84%20%C2%B7%20%E6%8E%A1%E9%AE%AE%E8%BE%B2%E7%94%A2%E8%A1%8C%22%2C%22short_name%22%3A%22%E6%94%AF%E5%87%BA%E8%A8%98%E9%8C%84%22%2C%22start_url%22%3A%22.%22%2C%22display%22%3A%22standalone%22%2C%22background_color%22%3A%22%23FFFFFF%22%2C%22theme_color%22%3A%22%230F766E%22%2C%22icons%22%3A%5B%7B%22src%22%3A%22data%3Aimage%2Fsvg%2Bxml%2C%253Csvg%2520xmlns%3D%2527http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%2527%2520viewBox%3D%25270%25200%2520192%2520192%2527%253E%253Crect%2520width%3D%2527192%2527%2520height%3D%2527192%2527%2520rx%3D%252740%2527%2520fill%3D%2527%25230F766E%2527%2F%253E%253Ctext%2520x%3D%252796%2527%2520y%3D%2527124%2527%2520font-size%3D%252788%2527%2520text-anchor%3D%2527middle%2527%2520fill%3D%2527white%2527%2520font-family%3D%2527sans-serif%2527%253E%25E6%2594%25AF%253C%2Ftext%253E%253C%2Fsvg%253E%22%2C%22sizes%22%3A%22192x192%22%2C%22type%22%3A%22image%2Fsvg%2Bxml%22%7D%5D%7D">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+<script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
+<style>
+  :root{
+    --ink:#1C1F26;
+    --ink-soft:#5B616E;
+    --bg:#FFFFFF;
+    --card:#F5F6F8;
+    --line:#E3E5E9;
+    --accent:#0F766E;
+    --accent-soft:#E5F2F0;
+    --warn:#DC4C3E;
+    --warn-soft:#FBEAE8;
+    --up:#DC4C3E;
+    --down:#0F766E;
+    --radius:10px;
+  }
+  *{box-sizing:border-box;}
+  html,body{overscroll-behavior-y:none;}
+  body{
+    margin:0;
+    background:var(--bg);
+    color:var(--ink);
+    font-family:'Noto Sans TC','-apple-system',sans-serif;
+    -webkit-font-smoothing:antialiased;
+    padding-bottom:env(safe-area-inset-bottom);
+  }
+  .mono{font-family:'Space Mono',monospace;}
+
+  .app{
+    max-width:760px;
+    margin:0 auto;
+    padding:20px 18px 110px;
+  }
+
+  /* Header */
+  .header{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    margin-bottom:18px;
+    gap:12px;
+  }
+  .brand{
+    font-size:13px;
+    color:var(--ink-soft);
+    letter-spacing:0.04em;
+  }
+  .brand strong{color:var(--ink);}
+  .user-chip{
+    display:flex;
+    align-items:center;
+    gap:6px;
+    font-size:12px;
+    color:var(--ink-soft);
+    border:1px solid var(--line);
+    border-radius:20px;
+    padding:5px 12px;
+    cursor:pointer;
+    white-space:nowrap;
+    transition:border-color .15s,color .15s;
+  }
+  .user-chip:hover{border-color:var(--accent);color:var(--accent);}
+
+  /* Tabs */
+  .tabs{
+    display:flex;
+    gap:4px;
+    border-bottom:1px solid var(--line);
+    margin-bottom:20px;
+  }
+  .tab{
+    padding:10px 14px;
+    font-size:14px;
+    color:var(--ink-soft);
+    cursor:pointer;
+    border-bottom:2px solid transparent;
+    margin-bottom:-1px;
+    white-space:nowrap;
+    transition:color .15s,border-color .15s;
+  }
+  .tab.active{color:var(--accent);border-bottom-color:var(--accent);font-weight:700;}
+
+  .view{display:none;}
+  .view.active{display:block;}
+
+  /* Month bar */
+  .month-bar{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    margin-bottom:18px;
+    gap:10px;
+  }
+  .month-nav{display:flex;align-items:center;gap:12px;}
+  .month-btn{
+    width:32px;height:32px;
+    border:1px solid var(--line);
+    background:var(--bg);
+    border-radius:8px;
+    display:flex;align-items:center;justify-content:center;
+    cursor:pointer;
+    color:var(--ink-soft);
+    font-size:16px;
+    transition:border-color .15s,color .15s;
+    flex-shrink:0;
+  }
+  .month-btn:hover{border-color:var(--accent);color:var(--accent);}
+  .month-label{
+    font-size:17px;font-weight:700;
+    min-width:96px;text-align:center;
+  }
+  .today-btn{
+    font-size:12px;
+    color:var(--accent);
+    cursor:pointer;
+    padding:5px 10px;
+    border:1px solid var(--line);
+    border-radius:7px;
+    transition:background .15s;
+  }
+  .today-btn:hover{background:var(--accent-soft);}
+
+  /* Total card */
+  .total-card{
+    border:1px solid var(--line);
+    border-radius:var(--radius);
+    padding:24px 22px;
+    margin-bottom:16px;
+  }
+  .total-label{font-size:12px;color:var(--ink-soft);letter-spacing:0.06em;margin-bottom:8px;}
+  .total-amount{font-size:40px;font-weight:700;letter-spacing:-0.01em;line-height:1;}
+  .total-amount sup{font-size:17px;font-weight:400;color:var(--ink-soft);margin-right:2px;}
+  .total-meta{margin-top:10px;font-size:12.5px;color:var(--ink-soft);display:flex;flex-wrap:wrap;gap:12px;align-items:center;}
+  .total-meta b{color:var(--accent);}
+  .delta{
+    display:inline-flex;align-items:center;gap:4px;
+    font-size:12.5px;font-weight:700;
+    padding:3px 9px;border-radius:6px;
+  }
+  .delta.up{background:var(--warn-soft);color:var(--up);}
+  .delta.down{background:var(--accent-soft);color:var(--down);}
+  .delta.flat{background:var(--card);color:var(--ink-soft);}
+
+  /* Sections */
+  .section-title{
+    font-size:12px;color:var(--ink-soft);letter-spacing:0.06em;
+    margin:26px 0 12px;
+    display:flex;justify-content:space-between;align-items:center;gap:10px;
+  }
+  .link-btn{
+    color:var(--accent);cursor:pointer;font-size:12px;letter-spacing:0;
+    white-space:nowrap;
+  }
+  .link-btn:hover{text-decoration:underline;}
+
+  /* Category rows */
+  .cat-list{display:flex;flex-direction:column;gap:10px;}
+  .cat-row{border:1px solid var(--line);border-radius:var(--radius);padding:13px 15px;}
+  .cat-row.over{border-color:var(--warn);background:var(--warn-soft);}
+  .cat-row-top{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:7px;gap:8px;}
+  .cat-name{font-size:14px;font-weight:500;}
+  .cat-right{display:flex;align-items:center;gap:8px;flex-shrink:0;}
+  .cat-amount{font-size:15px;font-weight:700;}
+  .cat-bar-bg{height:5px;background:var(--card);border-radius:3px;overflow:hidden;}
+  .cat-bar-fill{height:100%;background:var(--accent);border-radius:3px;transition:width .4s ease;}
+  .cat-bar-fill.over{background:var(--warn);}
+  .cat-sub{
+    margin-top:6px;font-size:11.5px;color:var(--ink-soft);
+    display:flex;justify-content:space-between;gap:8px;
+  }
+  .cat-sub .over-text{color:var(--warn);font-weight:700;}
+
+  .empty-state{
+    text-align:center;padding:30px 16px;color:var(--ink-soft);
+    font-size:13px;border:1px dashed var(--line);border-radius:var(--radius);
+  }
+
+  /* Search bar */
+  .search-bar{
+    display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;
+  }
+  .search-input{
+    flex:1;min-width:160px;
+    padding:9px 12px;border:1px solid var(--line);border-radius:8px;
+    font-size:14px;font-family:inherit;color:var(--ink);background:var(--bg);
+  }
+  .search-input:focus{outline:none;border-color:var(--accent);}
+  .filter-select{
+    padding:9px 10px;border:1px solid var(--line);border-radius:8px;
+    font-size:13px;font-family:inherit;color:var(--ink);background:var(--bg);
+    max-width:150px;
+  }
+  .filter-select:focus{outline:none;border-color:var(--accent);}
+
+  /* Records */
+  .record-list{display:flex;flex-direction:column;gap:8px;}
+  .record-row{
+    display:flex;align-items:center;gap:11px;
+    padding:12px 13px;border:1px solid var(--line);border-radius:var(--radius);
+    cursor:pointer;transition:border-color .15s,background .15s;
+  }
+  .record-row:hover{border-color:var(--accent);background:var(--accent-soft);}
+  .record-date{
+    font-size:11px;color:var(--ink-soft);width:40px;flex-shrink:0;
+    line-height:1.3;text-align:center;border-right:1px solid var(--line);padding-right:11px;
+  }
+  .record-date .d{font-size:16px;font-weight:700;color:var(--ink);display:block;}
+  .record-info{flex:1;min-width:0;}
+  .record-tags{display:flex;align-items:center;gap:5px;margin-bottom:3px;flex-wrap:wrap;}
+  .record-cat{
+    font-size:11px;padding:2px 8px;border-radius:5px;
+    background:var(--card);color:var(--ink-soft);
+  }
+  .record-user{
+    font-size:10.5px;padding:2px 7px;border-radius:5px;
+    background:var(--accent-soft);color:var(--accent);
+  }
+  .record-note{
+    font-size:13px;color:var(--ink-soft);
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  }
+  .record-amount{font-size:15px;font-weight:700;flex-shrink:0;}
+
+  /* Trend view */
+  .trend-table{width:100%;border-collapse:collapse;font-size:13px;}
+  .trend-table th{
+    text-align:left;font-size:11.5px;color:var(--ink-soft);font-weight:500;
+    padding:8px 10px;border-bottom:1px solid var(--line);letter-spacing:0.03em;
+  }
+  .trend-table th.num,.trend-table td.num{text-align:right;}
+  .trend-table td{padding:11px 10px;border-bottom:1px solid var(--line);}
+  .trend-table tr:last-child td{border-bottom:none;}
+  .trend-table .amt{font-family:'Space Mono',monospace;font-weight:700;}
+  .chg{font-size:12px;font-weight:700;white-space:nowrap;}
+  .chg.up{color:var(--up);}
+  .chg.down{color:var(--down);}
+  .chg.flat{color:var(--ink-soft);}
+
+  .spark-wrap{
+    border:1px solid var(--line);border-radius:var(--radius);
+    padding:18px 16px;margin-bottom:16px;
+  }
+  .spark-title{font-size:12px;color:var(--ink-soft);margin-bottom:14px;letter-spacing:0.05em;}
+  .spark-bars{display:flex;align-items:flex-end;gap:6px;height:110px;}
+  .spark-col{flex:1;display:flex;flex-direction:column;align-items:center;gap:6px;height:100%;justify-content:flex-end;}
+  .spark-bar{
+    width:100%;background:var(--accent-soft);border-radius:4px 4px 0 0;
+    position:relative;transition:height .4s ease;min-height:2px;
+  }
+  .spark-bar.current{background:var(--accent);}
+  .spark-label{font-size:10px;color:var(--ink-soft);white-space:nowrap;}
+  .spark-val{font-size:9.5px;color:var(--ink-soft);font-family:'Space Mono',monospace;}
+
+  /* FAB */
+  .fab{
+    position:fixed;bottom:calc(22px + env(safe-area-inset-bottom));right:50%;
+    transform:translateX(380px);
+    width:56px;height:56px;border-radius:50%;
+    background:var(--accent);color:#fff;border:none;font-size:26px;
+    cursor:pointer;box-shadow:0 4px 16px rgba(15,118,110,0.35);
+    display:flex;align-items:center;justify-content:center;z-index:50;
+  }
+  @media (max-width:800px){.fab{right:20px;transform:none;}}
+
+  /* Modal */
+  .overlay{
+    position:fixed;inset:0;background:rgba(28,31,38,0.4);
+    display:none;align-items:flex-end;justify-content:center;z-index:100;
+  }
+  .overlay.open{display:flex;}
+  @media (min-width:560px){.overlay{align-items:center;}}
+  .sheet{
+    background:var(--bg);border-radius:16px 16px 0 0;width:100%;max-width:480px;
+    padding:22px 20px calc(26px + env(safe-area-inset-bottom));
+    max-height:90vh;overflow-y:auto;
+  }
+  @media (min-width:560px){.sheet{border-radius:16px;}}
+  .sheet-title{
+    font-size:16px;font-weight:700;margin-bottom:16px;
+    display:flex;justify-content:space-between;align-items:center;
+  }
+  .sheet-close{color:var(--ink-soft);cursor:pointer;font-size:22px;line-height:1;}
+  .field{margin-bottom:15px;}
+  .field label{
+    display:block;font-size:12px;color:var(--ink-soft);
+    margin-bottom:6px;letter-spacing:0.03em;
+  }
+  .field input,.field select{
+    width:100%;padding:11px 12px;border:1px solid var(--line);border-radius:8px;
+    font-size:15px;font-family:inherit;background:var(--bg);color:var(--ink);
+  }
+  .field input:focus,.field select:focus{outline:none;border-color:var(--accent);}
+  .field input.amount-input{font-family:'Space Mono',monospace;font-size:20px;font-weight:700;}
+  .hint{font-size:11.5px;color:var(--ink-soft);margin-top:5px;line-height:1.5;}
+
+  .chip-row{display:flex;gap:7px;flex-wrap:wrap;}
+  .chip{
+    padding:7px 13px;border:1px solid var(--line);border-radius:20px;
+    font-size:13px;cursor:pointer;color:var(--ink-soft);transition:all .15s;
+  }
+  .chip.active{background:var(--accent);border-color:var(--accent);color:#fff;}
+  .chip.dashed{color:var(--accent);border-style:dashed;}
+
+  .tpl-row{
+    display:flex;align-items:center;gap:9px;
+    padding:11px 12px;border:1px solid var(--line);border-radius:9px;
+    cursor:pointer;margin-bottom:8px;transition:border-color .15s,background .15s;
+  }
+  .tpl-row:hover{border-color:var(--accent);background:var(--accent-soft);}
+  .tpl-info{flex:1;min-width:0;}
+  .tpl-name{font-size:14px;font-weight:500;}
+  .tpl-meta{font-size:11.5px;color:var(--ink-soft);margin-top:2px;}
+  .tpl-amt{font-family:'Space Mono',monospace;font-weight:700;font-size:14px;flex-shrink:0;}
+
+  .btn-row{display:flex;gap:9px;margin-top:18px;}
+  .btn{
+    flex:1;padding:13px;border-radius:8px;border:none;
+    font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;
+  }
+  .btn-primary{background:var(--accent);color:#fff;}
+  .btn-danger{background:var(--warn-soft);color:var(--warn);}
+  .btn-ghost{background:var(--card);color:var(--ink-soft);}
+  .btn-sm{padding:9px 14px;font-size:13px;flex:0 0 auto;}
+
+  .manage-row{
+    display:flex;align-items:center;gap:9px;
+    padding:10px 0;border-bottom:1px solid var(--line);
+  }
+  .manage-row:last-of-type{border-bottom:none;}
+  .manage-row input[type=text]{
+    flex:1;border:none;background:transparent;font-size:14px;
+    color:var(--ink);padding:4px 0;font-family:inherit;
+  }
+  .manage-row input[type=text]:focus{outline:none;border-bottom:1px solid var(--accent);}
+  .manage-row input[type=number]{
+    width:100px;padding:6px 8px;border:1px solid var(--line);border-radius:6px;
+    font-size:13px;font-family:'Space Mono',monospace;flex-shrink:0;
+  }
+  .manage-row input[type=number]:focus{outline:none;border-color:var(--accent);}
+  .icon-btn{
+    width:28px;height:28px;display:flex;align-items:center;justify-content:center;
+    border-radius:6px;color:var(--ink-soft);cursor:pointer;font-size:14px;flex-shrink:0;
+  }
+  .icon-btn:hover{background:var(--card);color:var(--warn);}
+
+  .toast{
+    position:fixed;bottom:calc(22px + env(safe-area-inset-bottom));left:50%;
+    transform:translateX(-50%) translateY(10px);
+    background:var(--ink);color:#fff;padding:11px 20px;border-radius:8px;
+    font-size:13px;opacity:0;pointer-events:none;
+    transition:opacity .2s,transform .2s;z-index:200;max-width:90vw;text-align:center;
+  }
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+
+  .banner{
+    padding:12px 14px;border-radius:10px;font-size:13px;
+    margin-bottom:16px;line-height:1.6;
+  }
+  .banner.warn{background:var(--warn-soft);color:var(--warn);}
+  .banner.info{
+    background:var(--accent-soft);color:var(--accent);
+    display:flex;justify-content:space-between;align-items:center;gap:12px;
+  }
+  .banner .x{cursor:pointer;font-size:17px;flex-shrink:0;line-height:1;}
+
+  .loading-row{text-align:center;padding:24px;color:var(--ink-soft);font-size:13px;}
+</style>
+</head>
+<body>
+
+<div class="app">
+  <div class="header">
+    <div class="brand"><strong>採鮮農產行</strong> · 支出記錄</div>
+    <div class="user-chip" id="userChip">👤 <span id="userName">設定名字</span></div>
+  </div>
+
+  <div id="pwaBanner"></div>
+
+  <div class="tabs">
+    <div class="tab active" data-view="monthly">本月</div>
+    <div class="tab" data-view="trend">趨勢比較</div>
+    <div class="tab" data-view="export">匯出</div>
+  </div>
+
+  <!-- ===== Monthly view ===== -->
+  <div class="view active" id="view-monthly">
+    <div class="month-bar">
+      <div class="month-nav">
+        <div class="month-btn" id="prevMonth">‹</div>
+        <div class="month-label mono" id="monthLabel">—</div>
+        <div class="month-btn" id="nextMonth">›</div>
+      </div>
+      <div class="today-btn" id="todayBtn">回本月</div>
+    </div>
+
+    <div class="total-card">
+      <div class="total-label">本月總支出</div>
+      <div class="total-amount mono"><sup>NT$</sup><span id="totalAmount">0</span></div>
+      <div class="total-meta" id="totalMeta">尚無記錄</div>
+    </div>
+
+    <div class="section-title">
+      <span>分類佔比</span>
+      <span class="link-btn" id="manageCatsBtn">管理分類與預算</span>
+    </div>
+    <div class="cat-list" id="catList"></div>
+
+    <div class="section-title">
+      <span>明細</span>
+      <span class="link-btn" id="manageTplBtn">管理範本</span>
+    </div>
+    <div class="search-bar">
+      <input type="text" class="search-input" id="searchInput" placeholder="搜尋備註、分類、輸入者…">
+      <select class="filter-select" id="filterCat"><option value="">所有分類</option></select>
+    </div>
+    <div class="record-list" id="recordList"><div class="loading-row">載入中…</div></div>
+  </div>
+
+  <!-- ===== Trend view ===== -->
+  <div class="view" id="view-trend">
+    <div class="month-bar">
+      <div class="month-nav">
+        <div class="month-btn" id="prevMonth2">‹</div>
+        <div class="month-label mono" id="monthLabel2">—</div>
+        <div class="month-btn" id="nextMonth2">›</div>
+      </div>
+      <div class="today-btn" id="todayBtn2">回本月</div>
+    </div>
+
+    <div class="spark-wrap">
+      <div class="spark-title">近 6 個月總支出</div>
+      <div class="spark-bars" id="sparkBars"></div>
+    </div>
+
+    <div class="total-card">
+      <div class="total-label">本月 vs 上月</div>
+      <div class="total-amount mono"><sup>NT$</sup><span id="trendTotal">0</span></div>
+      <div class="total-meta" id="trendMeta"></div>
+    </div>
+
+    <div class="section-title"><span>分類趨勢（本月 vs 上月）</span></div>
+    <div id="trendTableWrap"></div>
+  </div>
+
+  <!-- ===== Export view ===== -->
+  <div class="view" id="view-export">
+    <div class="field">
+      <label>匯出範圍</label>
+      <div class="chip-row" id="exportScopeRow">
+        <div class="chip active" data-scope="month">單月</div>
+        <div class="chip" data-scope="year">整年</div>
+      </div>
+    </div>
+
+    <div class="field" id="exportMonthField">
+      <label>選擇月份</label>
+      <input type="month" id="exportMonth">
+    </div>
+
+    <div class="field" id="exportYearField" style="display:none;">
+      <label>選擇年份</label>
+      <select id="exportYear"></select>
+    </div>
+
+    <div class="field">
+      <label>檔案格式</label>
+      <div class="chip-row" id="exportFmtRow">
+        <div class="chip active" data-fmt="xlsx">Excel (.xlsx)</div>
+        <div class="chip" data-fmt="csv">CSV</div>
+      </div>
+    </div>
+
+    <button class="btn btn-primary" id="doExportBtn" style="width:100%;margin-top:6px;">下載報表</button>
+    <div class="hint" style="margin-top:12px;">
+      Excel 會含三個分頁：<b>總覽</b>（總支出、分類小計、與上期比較）、<b>明細</b>（逐筆記錄）、<b>月度彙總</b>（整年匯出時各月各分類的交叉表）。
+    </div>
+  </div>
+</div>
+
+<button class="fab" id="addBtn">+</button>
+
+<!-- Record modal -->
+<div class="overlay" id="recordOverlay">
+  <div class="sheet">
+    <div class="sheet-title">
+      <span id="recordSheetTitle">新增支出</span>
+      <span class="sheet-close" data-close="recordOverlay">×</span>
+    </div>
+
+    <div id="quickRow" class="field">
+      <label>快速帶入</label>
+      <div class="chip-row">
+        <div class="chip dashed" id="useTplBtn">📋 從範本</div>
+        <div class="chip dashed" id="copyLastBtn">⧉ 複製上一筆</div>
+      </div>
+    </div>
+
+    <div class="field">
+      <label>金額</label>
+      <input type="number" inputmode="decimal" class="amount-input mono" id="amountInput" placeholder="0">
+    </div>
+
+    <div class="field">
+      <label>日期</label>
+      <input type="date" id="dateInput">
+    </div>
+
+    <div class="field">
+      <label>分類</label>
+      <div class="chip-row" id="catSelectRow"></div>
+    </div>
+
+    <div class="field">
+      <label>備註（選填）</label>
+      <input type="text" id="noteInput" placeholder="例如：冷藏倉電費、臨時搬運工資">
+    </div>
+
+    <div class="btn-row">
+      <button class="btn btn-ghost btn-sm" id="saveAsTplBtn">存為範本</button>
+      <button class="btn btn-danger" id="deleteRecordBtn" style="display:none;">刪除</button>
+      <button class="btn btn-primary" id="saveRecordBtn">儲存</button>
+    </div>
+  </div>
+</div>
+
+<!-- Category + budget modal -->
+<div class="overlay" id="catOverlay">
+  <div class="sheet">
+    <div class="sheet-title">
+      <span>管理分類與預算</span>
+      <span class="sheet-close" data-close="catOverlay">×</span>
+    </div>
+    <div class="hint" style="margin-bottom:12px;">
+      右欄可設定每月預算（留白＝不設定）。當月該分類超過預算時，會在「本月」頁標紅提醒。
+    </div>
+    <div id="manageCatList"></div>
+    <div class="btn-row">
+      <button class="btn btn-ghost" id="addCatBtn">+ 新增分類</button>
+    </div>
+  </div>
+</div>
+
+<!-- Template modal -->
+<div class="overlay" id="tplOverlay">
+  <div class="sheet">
+    <div class="sheet-title">
+      <span id="tplSheetTitle">常用支出範本</span>
+      <span class="sheet-close" data-close="tplOverlay">×</span>
+    </div>
+    <div class="hint" style="margin-bottom:12px;">
+      把每月固定的支出（租金、薪資、保險等）存成範本，新增時一鍵帶入金額、分類、備註。
+    </div>
+    <div id="tplList"></div>
+  </div>
+</div>
+
+<!-- User modal -->
+<div class="overlay" id="userOverlay">
+  <div class="sheet">
+    <div class="sheet-title">
+      <span>設定你的名字</span>
+      <span class="sheet-close" data-close="userOverlay">×</span>
+    </div>
+    <div class="field">
+      <label>名字</label>
+      <input type="text" id="userInput" placeholder="例如：土豆、阿明">
+    </div>
+    <div class="hint">
+      這個名字只存在這台裝置上，之後每筆你新增的記錄都會標上它，方便多人共用時分辨是誰輸入的。隨時可以改。
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-primary" id="saveUserBtn">儲存</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import {
+  getFirestore, collection, addDoc, updateDoc, deleteDoc,
+  doc, onSnapshot, query, orderBy, setDoc, getDoc
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+// ===== Firebase =====
+const firebaseConfig = {
+  apiKey: "AIzaSyByhwd94GcW2jdSLZVX8rVs8aVLizxmb0M",
+  authDomain: "caixian-expenses.firebaseapp.com",
+  projectId: "caixian-expenses",
+  storageBucket: "caixian-expenses.firebasestorage.app",
+  messagingSenderId: "730009001451",
+  appId: "1:730009001451:web:8ccc3fb594f38872e48dae"
+};
+const FIREBASE_READY = !firebaseConfig.apiKey.startsWith("YOUR_");
+const fbApp = initializeApp(firebaseConfig);
+const db = getFirestore(fbApp);
+
+// ===== State =====
+let currentDate = new Date();
+let records = [];
+let categories = [];
+let templates = [];
+let editingRecordId = null;
+let selectedCatId = null;
+let userName = "";
+let exportScope = "month";
+let exportFmt = "xlsx";
+let searchText = "";
+let filterCatId = "";
+
+const DEFAULT_CATEGORIES = [
+  { id:"cat_purchase",  name:"進貨成本",          budget:null },
+  { id:"cat_labor",     name:"人事成本",          budget:null },
+  { id:"cat_transport", name:"運輸/物流成本",     budget:null },
+  { id:"cat_venue",     name:"場地與設備成本",    budget:null },
+  { id:"cat_packaging", name:"包材與耗材",        budget:null },
+  { id:"cat_loss",      name:"損耗",              budget:null },
+  { id:"cat_market",    name:"市場/交易相關費用", budget:null },
+  { id:"cat_marketing", name:"行銷與客戶開發",    budget:null },
+  { id:"cat_admin",     name:"行政與其他固定支出", budget:null }
+];
+
+// ===== Utils =====
+const $ = id => document.getElementById(id);
+const fmtMonth = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+const fmtMoney = n => Math.round(Number(n)||0).toLocaleString('en-US');
+const todayStr = () => {
+  const d=new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+};
+function shiftMonth(ym, delta){
+  const [y,m] = ym.split('-').map(Number);
+  const d = new Date(y, m-1+delta, 1);
+  return fmtMonth(d);
+}
+function showToast(msg){
+  const t=$('toast'); t.textContent=msg; t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),2200);
+}
+const catName = id => (categories.find(c=>c.id===id)||{}).name || "未分類";
+const catBudget = id => {
+  const c = categories.find(c=>c.id===id);
+  return c && c.budget ? Number(c.budget) : null;
+};
+
+// ===== Local user =====
+function loadUser(){
+  try{ userName = localStorage.getItem('cx_expense_user') || ""; }catch(e){ userName=""; }
+  $('userName').textContent = userName || "設定名字";
+}
+function saveUser(name){
+  userName = name.trim();
+  try{ localStorage.setItem('cx_expense_user', userName); }catch(e){}
+  $('userName').textContent = userName || "設定名字";
+}
+
+// ===== Firestore: categories =====
+async function ensureDoc(path, seed){
+  const ref = doc(db, ...path);
+  const snap = await getDoc(ref);
+  if(!snap.exists()) await setDoc(ref, seed);
+}
+function listenCategories(){
+  onSnapshot(doc(db,"meta","categories"), snap=>{
+    categories = snap.exists() ? (snap.data().list||[]) : [...DEFAULT_CATEGORIES];
+    // migrate: ensure budget key exists
+    categories = categories.map(c=>({ budget:null, ...c }));
+    renderCatSelectRow(); renderManageCatList(); renderFilterCatOptions();
+    renderMonthly(); renderTrend();
+  });
+}
+const saveCategories = () => setDoc(doc(db,"meta","categories"), { list: categories });
+
+// ===== Firestore: templates =====
+function listenTemplates(){
+  onSnapshot(doc(db,"meta","templates"), snap=>{
+    templates = snap.exists() ? (snap.data().list||[]) : [];
+    renderTplList();
+  });
+}
+const saveTemplates = () => setDoc(doc(db,"meta","templates"), { list: templates });
+
+// ===== Firestore: records =====
+function listenRecords(){
+  onSnapshot(query(collection(db,"expenses"), orderBy("date","desc")), snap=>{
+    records = snap.docs.map(d=>({ id:d.id, ...d.data() }));
+    renderMonthly(); renderTrend(); renderExportYearOptions();
+  }, err=>{
+    console.error(err);
+    $('recordList').innerHTML = `<div class="empty-state">讀取失敗：${err.code||err.message}</div>`;
+  });
+}
+const recordsOf = ym => records.filter(r=>r.date && r.date.startsWith(ym));
+const sumOf = arr => arr.reduce((s,r)=>s+Number(r.amount||0),0);
+function catTotals(arr){
+  const t={};
+  arr.forEach(r=>{ const c=r.categoryId||"__none"; t[c]=(t[c]||0)+Number(r.amount||0); });
+  return t;
+}
+
+// ===== Render: monthly =====
+function renderMonthly(){
+  const ym = fmtMonth(currentDate);
+  $('monthLabel').textContent = ym;
+  $('monthLabel2').textContent = ym;
+
+  const cur = recordsOf(ym);
+  const prev = recordsOf(shiftMonth(ym,-1));
+  const total = sumOf(cur), prevTotal = sumOf(prev);
+
+  $('totalAmount').textContent = fmtMoney(total);
+
+  const meta = $('totalMeta');
+  if(cur.length===0){
+    meta.innerHTML = "尚無記錄";
+  } else {
+    let html = `共 <b>${cur.length}</b> 筆`;
+    if(prevTotal>0){
+      const diff = total - prevTotal;
+      const pct = (diff/prevTotal*100);
+      const cls = Math.abs(pct)<0.05 ? 'flat' : (diff>0?'up':'down');
+      const arrow = Math.abs(pct)<0.05 ? '→' : (diff>0?'↑':'↓');
+      html += `<span class="delta ${cls}">${arrow} 較上月 ${diff>0?'+':''}${fmtMoney(diff)}（${pct>0?'+':''}${pct.toFixed(1)}%）</span>`;
+    }
+    meta.innerHTML = html;
+  }
+
+  // categories
+  const list = $('catList');
+  if(cur.length===0){
+    list.innerHTML = `<div class="empty-state">本月還沒有支出記錄</div>`;
+  } else {
+    const totals = catTotals(cur);
+    const grand = Object.values(totals).reduce((a,b)=>a+b,0);
+    const sorted = Object.entries(totals).sort((a,b)=>b[1]-a[1]);
+    list.innerHTML = sorted.map(([cid,amt])=>{
+      const pct = grand>0 ? amt/grand*100 : 0;
+      const bud = catBudget(cid);
+      const over = bud && amt>bud;
+      const budPct = bud ? Math.min(amt/bud*100,100) : pct;
+      return `
+        <div class="cat-row ${over?'over':''}">
+          <div class="cat-row-top">
+            <span class="cat-name">${catName(cid)}</span>
+            <div class="cat-right"><span class="cat-amount mono">$${fmtMoney(amt)}</span></div>
+          </div>
+          <div class="cat-bar-bg"><div class="cat-bar-fill ${over?'over':''}" style="width:${bud?budPct:pct}%"></div></div>
+          <div class="cat-sub">
+            <span>佔比 ${pct.toFixed(1)}%</span>
+            ${bud ? `<span class="${over?'over-text':''}">預算 $${fmtMoney(bud)}${over?` · 超支 $${fmtMoney(amt-bud)}`:` · 剩 $${fmtMoney(bud-amt)}`}</span>` : ``}
+          </div>
+        </div>`;
+    }).join('');
+  }
+
+  renderRecordList(cur);
+}
+
+function renderRecordList(cur){
+  const list = $('recordList');
+  let shown = cur;
+  if(filterCatId) shown = shown.filter(r=>r.categoryId===filterCatId);
+  if(searchText){
+    const q = searchText.toLowerCase();
+    shown = shown.filter(r =>
+      (r.note||"").toLowerCase().includes(q) ||
+      catName(r.categoryId).toLowerCase().includes(q) ||
+      (r.user||"").toLowerCase().includes(q) ||
+      String(r.amount||"").includes(q)
+    );
+  }
+  if(cur.length===0){
+    list.innerHTML = `<div class="empty-state">點右下角「+」新增第一筆支出</div>`;
+    return;
+  }
+  if(shown.length===0){
+    list.innerHTML = `<div class="empty-state">沒有符合條件的記錄</div>`;
+    return;
+  }
+  list.innerHTML = shown.map(r=>{
+    const d = new Date(r.date+"T00:00:00");
+    const wd = ['日','一','二','三','四','五','六'][d.getDay()];
+    return `
+      <div class="record-row" data-id="${r.id}">
+        <div class="record-date"><span class="d">${d.getDate()}</span>週${wd}</div>
+        <div class="record-info">
+          <div class="record-tags">
+            <span class="record-cat">${catName(r.categoryId)}</span>
+            ${r.user?`<span class="record-user">${r.user}</span>`:''}
+          </div>
+          <div class="record-note">${r.note || '（無備註）'}</div>
+        </div>
+        <div class="record-amount mono">$${fmtMoney(r.amount)}</div>
+      </div>`;
+  }).join('');
+  list.querySelectorAll('.record-row').forEach(row=>{
+    row.addEventListener('click', ()=>openEditRecord(row.dataset.id));
+  });
+}
+
+function renderFilterCatOptions(){
+  const sel = $('filterCat');
+  const keep = sel.value;
+  sel.innerHTML = `<option value="">所有分類</option>` +
+    categories.map(c=>`<option value="${c.id}">${c.name}</option>`).join('');
+  sel.value = keep;
+}
+
+// ===== Render: trend =====
+function renderTrend(){
+  const ym = fmtMonth(currentDate);
+  const cur = recordsOf(ym), prev = recordsOf(shiftMonth(ym,-1));
+  const total = sumOf(cur), prevTotal = sumOf(prev);
+
+  $('trendTotal').textContent = fmtMoney(total);
+  const tm = $('trendMeta');
+  if(prevTotal===0 && total===0){
+    tm.innerHTML = "本月與上月皆無記錄";
+  } else if(prevTotal===0){
+    tm.innerHTML = `上月無記錄，無法比較`;
+  } else {
+    const diff = total-prevTotal, pct = diff/prevTotal*100;
+    const cls = Math.abs(pct)<0.05?'flat':(diff>0?'up':'down');
+    const arrow = Math.abs(pct)<0.05?'→':(diff>0?'↑':'↓');
+    tm.innerHTML = `上月 <b>$${fmtMoney(prevTotal)}</b>
+      <span class="delta ${cls}">${arrow} ${diff>0?'+':''}${fmtMoney(diff)}（${pct>0?'+':''}${pct.toFixed(1)}%）</span>`;
+  }
+
+  // sparkline: last 6 months
+  const months=[];
+  for(let i=5;i>=0;i--) months.push(shiftMonth(ym,-i));
+  const vals = months.map(m=>sumOf(recordsOf(m)));
+  const max = Math.max(...vals,1);
+  $('sparkBars').innerHTML = months.map((m,i)=>{
+    const h = vals[i]/max*100;
+    return `<div class="spark-col">
+      <span class="spark-val">${vals[i]>0?fmtMoney(vals[i]):''}</span>
+      <div class="spark-bar ${i===5?'current':''}" style="height:${h}%"></div>
+      <span class="spark-label">${m.slice(2)}</span>
+    </div>`;
+  }).join('');
+
+  // category trend table
+  const ct = catTotals(cur), pt = catTotals(prev);
+  const ids = [...new Set([...Object.keys(ct),...Object.keys(pt)])];
+  const wrap = $('trendTableWrap');
+  if(ids.length===0){
+    wrap.innerHTML = `<div class="empty-state">本月與上月皆無記錄</div>`;
+    return;
+  }
+  const rows = ids.map(id=>({
+    id, name:catName(id), cur:ct[id]||0, prev:pt[id]||0,
+    diff:(ct[id]||0)-(pt[id]||0)
+  })).sort((a,b)=>Math.abs(b.diff)-Math.abs(a.diff));
+
+  wrap.innerHTML = `<table class="trend-table">
+    <thead><tr>
+      <th>分類</th><th class="num">本月</th><th class="num">上月</th><th class="num">變化</th>
+    </tr></thead><tbody>
+    ${rows.map(r=>{
+      let chg, cls;
+      if(r.prev===0 && r.cur>0){ chg="新增"; cls="up"; }
+      else if(r.cur===0 && r.prev>0){ chg="－100%"; cls="down"; }
+      else{
+        const p = (r.diff/r.prev*100);
+        cls = Math.abs(p)<0.05?'flat':(r.diff>0?'up':'down');
+        chg = `${p>0?'+':''}${p.toFixed(1)}%`;
+      }
+      return `<tr>
+        <td>${r.name}</td>
+        <td class="num amt">$${fmtMoney(r.cur)}</td>
+        <td class="num amt" style="color:var(--ink-soft)">$${fmtMoney(r.prev)}</td>
+        <td class="num"><span class="chg ${cls}">${chg}</span></td>
+      </tr>`;
+    }).join('')}
+    </tbody></table>`;
+}
+
+// ===== Record modal =====
+function renderCatSelectRow(){
+  const row = $('catSelectRow');
+  row.innerHTML = categories.map(c=>
+    `<div class="chip ${c.id===selectedCatId?'active':''}" data-id="${c.id}">${c.name}</div>`
+  ).join('');
+  row.querySelectorAll('.chip').forEach(ch=>{
+    ch.addEventListener('click', ()=>{ selectedCatId=ch.dataset.id; renderCatSelectRow(); });
+  });
+}
+function openAddRecord(){
+  editingRecordId=null;
+  selectedCatId = categories[0]?.id || null;
+  $('recordSheetTitle').textContent="新增支出";
+  $('amountInput').value=''; $('dateInput').value=todayStr(); $('noteInput').value='';
+  $('deleteRecordBtn').style.display='none';
+  $('quickRow').style.display='block';
+  $('saveAsTplBtn').style.display='block';
+  renderCatSelectRow();
+  $('recordOverlay').classList.add('open');
+}
+function openEditRecord(id){
+  const r = records.find(x=>x.id===id); if(!r) return;
+  editingRecordId=id; selectedCatId=r.categoryId;
+  $('recordSheetTitle').textContent="編輯支出";
+  $('amountInput').value=r.amount; $('dateInput').value=r.date; $('noteInput').value=r.note||'';
+  $('deleteRecordBtn').style.display='block';
+  $('quickRow').style.display='none';
+  $('saveAsTplBtn').style.display='none';
+  renderCatSelectRow();
+  $('recordOverlay').classList.add('open');
+}
+async function saveRecord(){
+  const amount = Number($('amountInput').value);
+  const date = $('dateInput').value;
+  const note = $('noteInput').value.trim();
+  if(!amount || amount<=0) return showToast("請輸入金額");
+  if(!date) return showToast("請選擇日期");
+  if(!selectedCatId) return showToast("請選擇分類");
+  if(!FIREBASE_READY) return showToast("Firebase 尚未設定，無法儲存");
+
+  const data = { amount, date, note, categoryId:selectedCatId };
+  try{
+    if(editingRecordId){
+      await updateDoc(doc(db,"expenses",editingRecordId), data);
+      showToast("已更新");
+    } else {
+      await addDoc(collection(db,"expenses"), { ...data, user:userName||"", createdAt:Date.now() });
+      showToast("已新增");
+    }
+    $('recordOverlay').classList.remove('open');
+  }catch(e){ console.error(e); showToast("儲存失敗："+(e.code||e.message)); }
+}
+async function deleteRecord(){
+  if(!editingRecordId) return;
+  if(!confirm("確定要刪除這筆記錄嗎？")) return;
+  try{
+    await deleteDoc(doc(db,"expenses",editingRecordId));
+    showToast("已刪除");
+    $('recordOverlay').classList.remove('open');
+  }catch(e){ showToast("刪除失敗："+(e.code||e.message)); }
+}
+function copyLastRecord(){
+  if(records.length===0) return showToast("還沒有任何記錄可複製");
+  const last = [...records].sort((a,b)=>(b.createdAt||0)-(a.createdAt||0))[0];
+  $('amountInput').value = last.amount;
+  $('noteInput').value = last.note||'';
+  selectedCatId = last.categoryId;
+  renderCatSelectRow();
+  showToast("已帶入上一筆");
+}
+
+// ===== Templates =====
+function renderTplList(){
+  const wrap = $('tplList');
+  if(templates.length===0){
+    wrap.innerHTML = `<div class="empty-state">還沒有範本。在新增支出時填好內容，按「存為範本」即可建立。</div>`;
+    return;
+  }
+  wrap.innerHTML = templates.map((t,i)=>`
+    <div class="tpl-row" data-idx="${i}">
+      <div class="tpl-info">
+        <div class="tpl-name">${t.name}</div>
+        <div class="tpl-meta">${catName(t.categoryId)}${t.note?' · '+t.note:''}</div>
+      </div>
+      <div class="tpl-amt">$${fmtMoney(t.amount)}</div>
+      <div class="icon-btn" data-del="${i}">✕</div>
+    </div>`).join('');
+
+  wrap.querySelectorAll('.tpl-row').forEach(row=>{
+    row.addEventListener('click', e=>{
+      if(e.target.dataset.del!==undefined) return;
+      applyTemplate(templates[row.dataset.idx]);
+    });
+  });
+  wrap.querySelectorAll('[data-del]').forEach(btn=>{
+    btn.addEventListener('click', async e=>{
+      e.stopPropagation();
+      if(!confirm("刪除這個範本？")) return;
+      templates.splice(Number(btn.dataset.del),1);
+      await saveTemplates(); showToast("範本已刪除");
+    });
+  });
+}
+function applyTemplate(t){
+  if(!t) return;
+  $('tplOverlay').classList.remove('open');
+  if(!$('recordOverlay').classList.contains('open')) openAddRecord();
+  $('amountInput').value = t.amount;
+  $('noteInput').value = t.note||'';
+  selectedCatId = t.categoryId;
+  renderCatSelectRow();
+  showToast(`已帶入「${t.name}」`);
+}
+async function saveAsTemplate(){
+  const amount = Number($('amountInput').value);
+  const note = $('noteInput').value.trim();
+  if(!amount || amount<=0) return showToast("請先填入金額");
+  if(!selectedCatId) return showToast("請先選擇分類");
+  const name = prompt("範本名稱：", note || catName(selectedCatId));
+  if(!name || !name.trim()) return;
+  templates.push({ name:name.trim(), amount, note, categoryId:selectedCatId });
+  await saveTemplates(); showToast("已存為範本");
+}
+
+// ===== Manage categories & budgets =====
+function renderManageCatList(){
+  const wrap = $('manageCatList');
+  wrap.innerHTML = categories.map(c=>`
+    <div class="manage-row">
+      <input type="text" value="${c.name}" data-name="${c.id}">
+      <input type="number" placeholder="預算" value="${c.budget??''}" data-budget="${c.id}">
+      <div class="icon-btn" data-delcat="${c.id}">✕</div>
+    </div>`).join('');
+
+  wrap.querySelectorAll('[data-name]').forEach(inp=>{
+    inp.addEventListener('change', async ()=>{
+      const c = categories.find(x=>x.id===inp.dataset.name);
+      if(c){ c.name = inp.value.trim()||c.name; await saveCategories(); showToast("已更新"); }
+    });
+  });
+  wrap.querySelectorAll('[data-budget]').forEach(inp=>{
+    inp.addEventListener('change', async ()=>{
+      const c = categories.find(x=>x.id===inp.dataset.budget);
+      if(c){
+        const v = inp.value.trim();
+        c.budget = v===''? null : Number(v);
+        await saveCategories(); showToast("預算已更新");
+      }
+    });
+  });
+  wrap.querySelectorAll('[data-delcat]').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      if(categories.length<=1) return showToast("至少需保留一個分類");
+      if(!confirm("刪除分類不會刪除已記錄的支出，但那些支出會顯示為「未分類」。確定刪除？")) return;
+      categories = categories.filter(c=>c.id!==btn.dataset.delcat);
+      await saveCategories(); showToast("分類已刪除");
+    });
+  });
+}
+async function addNewCategory(){
+  const name = prompt("新分類名稱：");
+  if(!name || !name.trim()) return;
+  categories.push({ id:"cat_"+Date.now(), name:name.trim(), budget:null });
+  await saveCategories(); showToast("已新增分類");
+}
+
+// ===== Export =====
+function renderExportYearOptions(){
+  const years = [...new Set(records.map(r=>(r.date||'').slice(0,4)).filter(Boolean))].sort().reverse();
+  if(years.length===0) years.push(String(new Date().getFullYear()));
+  const sel = $('exportYear'); const keep = sel.value;
+  sel.innerHTML = years.map(y=>`<option value="${y}">${y} 年</option>`).join('');
+  if(keep && years.includes(keep)) sel.value = keep;
+}
+
+function buildExportData(){
+  if(exportScope==="month"){
+    const ym = $('exportMonth').value || fmtMonth(currentDate);
+    const cur = recordsOf(ym), prev = recordsOf(shiftMonth(ym,-1));
+    return { label:ym, rows:cur, prevRows:prev, prevLabel:shiftMonth(ym,-1), isYear:false };
+  }
+  const y = $('exportYear').value || String(new Date().getFullYear());
+  const cur = records.filter(r=>(r.date||'').startsWith(y));
+  const prev = records.filter(r=>(r.date||'').startsWith(String(Number(y)-1)));
+  return { label:y+"年", rows:cur, prevRows:prev, prevLabel:(Number(y)-1)+"年", isYear:true, year:y };
+}
+
+function exportCSV(){
+  const { label, rows } = buildExportData();
+  if(rows.length===0) return showToast("該期間沒有記錄");
+  const head = ["日期","分類","金額","備註","輸入者"];
+  const body = [...rows].sort((a,b)=>a.date.localeCompare(b.date))
+    .map(r=>[r.date, catName(r.categoryId), r.amount, (r.note||'').replace(/"/g,'""'), r.user||'']);
+  const csv = "\uFEFF" + [head, ...body].map(row=>
+    row.map(c=>`"${String(c)}"`).join(',')
+  ).join('\r\n');
+  downloadBlob(new Blob([csv],{type:'text/csv;charset=utf-8;'}), `採鮮支出_${label}.csv`);
+  showToast("已下載 CSV");
+}
+
+function exportXLSX(){
+  const d = buildExportData();
+  if(d.rows.length===0) return showToast("該期間沒有記錄");
+
+  const wb = XLSX.utils.book_new();
+  const total = sumOf(d.rows), prevTotal = sumOf(d.prevRows);
+  const ct = catTotals(d.rows), pt = catTotals(d.prevRows);
+  const ids = [...new Set([...Object.keys(ct),...Object.keys(pt)])]
+    .sort((a,b)=>(ct[b]||0)-(ct[a]||0));
+
+  // --- Sheet 1: 總覽 ---
+  const ov = [
+    ["採鮮農產行 · 支出報表"],
+    ["期間", d.label],
+    ["產生時間", new Date().toLocaleString('zh-TW')],
+    [],
+    ["總支出", total],
+    [`上期（${d.prevLabel}）`, prevTotal],
+    ["增減", total-prevTotal],
+    ["增減百分比", prevTotal>0 ? (total-prevTotal)/prevTotal : ""],
+    ["記錄筆數", d.rows.length],
+    [],
+    ["分類", "本期金額", "佔比", `上期（${d.prevLabel}）`, "增減", "增減%", "月預算", "預算狀態"]
+  ];
+  ids.forEach(id=>{
+    const cur = ct[id]||0, prv = pt[id]||0;
+    const bud = catBudget(id);
+    let budStatus = "";
+    if(bud && !d.isYear) budStatus = cur>bud ? `超支 ${fmtMoney(cur-bud)}` : `剩餘 ${fmtMoney(bud-cur)}`;
+    ov.push([
+      catName(id), cur, total>0?cur/total:0, prv, cur-prv,
+      prv>0 ? (cur-prv)/prv : "", (bud&&!d.isYear)?bud:"", budStatus
+    ]);
+  });
+  const ws1 = XLSX.utils.aoa_to_sheet(ov);
+  ws1['!cols'] = [{wch:22},{wch:14},{wch:10},{wch:16},{wch:14},{wch:10},{wch:12},{wch:16}];
+  applyNumFmt(ws1, ov.length, [1,3,4,6], '#,##0');
+  applyNumFmt(ws1, ov.length, [2,5], '0.0%');
+  ws1['B5'] && (ws1['B5'].z='#,##0'); ws1['B6'] && (ws1['B6'].z='#,##0');
+  ws1['B7'] && (ws1['B7'].z='#,##0'); ws1['B8'] && (ws1['B8'].z='0.0%');
+  XLSX.utils.book_append_sheet(wb, ws1, "總覽");
+
+  // --- Sheet 2: 明細 ---
+  const det = [["日期","分類","金額","備註","輸入者"]];
+  [...d.rows].sort((a,b)=>a.date.localeCompare(b.date)).forEach(r=>{
+    det.push([r.date, catName(r.categoryId), Number(r.amount)||0, r.note||"", r.user||""]);
+  });
+  det.push([]);
+  det.push(["合計","",total,"",""]);
+  const ws2 = XLSX.utils.aoa_to_sheet(det);
+  ws2['!cols'] = [{wch:12},{wch:22},{wch:13},{wch:34},{wch:12}];
+  applyNumFmt(ws2, det.length, [2], '#,##0');
+  XLSX.utils.book_append_sheet(wb, ws2, "明細");
+
+  // --- Sheet 3: 月度彙總（整年才有意義） ---
+  if(d.isYear){
+    const months = Array.from({length:12},(_,i)=>`${d.year}-${String(i+1).padStart(2,'0')}`);
+    const head = ["分類", ...months.map(m=>m.slice(5)+"月"), "合計"];
+    const grid = [head];
+    ids.forEach(id=>{
+      const row=[catName(id)]; let sum=0;
+      months.forEach(m=>{
+        const v = sumOf(recordsOf(m).filter(r=>(r.categoryId||"__none")===id));
+        row.push(v); sum+=v;
+      });
+      row.push(sum); grid.push(row);
+    });
+    const totalRow=["合計"]; let gsum=0;
+    months.forEach(m=>{ const v=sumOf(recordsOf(m)); totalRow.push(v); gsum+=v; });
+    totalRow.push(gsum); grid.push(totalRow);
+
+    const ws3 = XLSX.utils.aoa_to_sheet(grid);
+    ws3['!cols'] = [{wch:22}, ...months.map(()=>({wch:11})), {wch:13}];
+    applyNumFmt(ws3, grid.length, Array.from({length:13},(_,i)=>i+1), '#,##0');
+    XLSX.utils.book_append_sheet(wb, ws3, "月度彙總");
+  }
+
+  XLSX.writeFile(wb, `採鮮支出報表_${d.label}.xlsx`);
+  showToast("已下載 Excel");
+}
+
+function applyNumFmt(ws, rowCount, colIdxs, fmt){
+  for(let r=0;r<rowCount;r++){
+    colIdxs.forEach(c=>{
+      const addr = XLSX.utils.encode_cell({r,c});
+      if(ws[addr] && typeof ws[addr].v === 'number') ws[addr].z = fmt;
+    });
+  }
+}
+
+function downloadBlob(blob, filename){
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href=url; a.download=filename; a.click();
+  setTimeout(()=>URL.revokeObjectURL(url), 1000);
+}
+
+// ===== PWA install hint =====
+let deferredPrompt = null;
+window.addEventListener('beforeinstallprompt', e=>{
+  e.preventDefault(); deferredPrompt = e;
+  showPwaBanner(true);
+});
+function showPwaBanner(canInstall){
+  if(localStorage.getItem('cx_pwa_dismissed')==='1') return;
+  if(window.matchMedia('(display-mode: standalone)').matches) return;
+  const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+  if(!canInstall && !isIOS) return;
+  const b = $('pwaBanner');
+  b.innerHTML = `<div class="banner info">
+    <span>${canInstall ? '把這個工具加到手機主畫面，開啟更快。' : '在 Safari 點下方「分享」→「加入主畫面」，就能像 App 一樣使用。'}</span>
+    ${canInstall ? '<button class="btn btn-primary btn-sm" id="pwaInstallBtn">加入</button>' : ''}
+    <span class="x" id="pwaDismiss">×</span></div>`;
+  $('pwaDismiss')?.addEventListener('click', ()=>{
+    localStorage.setItem('cx_pwa_dismissed','1'); b.innerHTML='';
+  });
+  $('pwaInstallBtn')?.addEventListener('click', async ()=>{
+    if(!deferredPrompt) return;
+    deferredPrompt.prompt();
+    await deferredPrompt.userChoice;
+    deferredPrompt=null; b.innerHTML='';
+  });
+}
+
+// ===== Tabs =====
+document.querySelectorAll('.tab').forEach(tab=>{
+  tab.addEventListener('click', ()=>{
+    document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+    document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+    tab.classList.add('active');
+    $('view-'+tab.dataset.view).classList.add('active');
+    if(tab.dataset.view==='export'){
+      $('exportMonth').value = fmtMonth(currentDate);
+      renderExportYearOptions();
+    }
+  });
+});
+
+// ===== Month nav =====
+function changeMonth(delta){
+  currentDate = new Date(currentDate.getFullYear(), currentDate.getMonth()+delta, 1);
+  renderMonthly(); renderTrend();
+}
+function goToday(){ currentDate = new Date(); renderMonthly(); renderTrend(); }
+['prevMonth','prevMonth2'].forEach(id=>$(id).addEventListener('click',()=>changeMonth(-1)));
+['nextMonth','nextMonth2'].forEach(id=>$(id).addEventListener('click',()=>changeMonth(1)));
+['todayBtn','todayBtn2'].forEach(id=>$(id).addEventListener('click', goToday));
+
+// ===== Bindings =====
+$('addBtn').addEventListener('click', openAddRecord);
+$('saveRecordBtn').addEventListener('click', saveRecord);
+$('deleteRecordBtn').addEventListener('click', deleteRecord);
+$('copyLastBtn').addEventListener('click', copyLastRecord);
+$('useTplBtn').addEventListener('click', ()=>$('tplOverlay').classList.add('open'));
+$('saveAsTplBtn').addEventListener('click', saveAsTemplate);
+$('manageCatsBtn').addEventListener('click', ()=>$('catOverlay').classList.add('open'));
+$('manageTplBtn').addEventListener('click', ()=>$('tplOverlay').classList.add('open'));
+$('addCatBtn').addEventListener('click', addNewCategory);
+
+$('userChip').addEventListener('click', ()=>{
+  $('userInput').value = userName;
+  $('userOverlay').classList.add('open');
+});
+$('saveUserBtn').addEventListener('click', ()=>{
+  saveUser($('userInput').value);
+  $('userOverlay').classList.remove('open');
+  showToast("已設定名字");
+});
+
+$('searchInput').addEventListener('input', e=>{
+  searchText = e.target.value.trim(); renderMonthly();
+});
+$('filterCat').addEventListener('change', e=>{
+  filterCatId = e.target.value; renderMonthly();
+});
+
+document.querySelectorAll('#exportScopeRow .chip').forEach(ch=>{
+  ch.addEventListener('click', ()=>{
+    document.querySelectorAll('#exportScopeRow .chip').forEach(c=>c.classList.remove('active'));
+    ch.classList.add('active'); exportScope = ch.dataset.scope;
+    $('exportMonthField').style.display = exportScope==='month'?'block':'none';
+    $('exportYearField').style.display  = exportScope==='year'?'block':'none';
+  });
+});
+document.querySelectorAll('#exportFmtRow .chip').forEach(ch=>{
+  ch.addEventListener('click', ()=>{
+    document.querySelectorAll('#exportFmtRow .chip').forEach(c=>c.classList.remove('active'));
+    ch.classList.add('active'); exportFmt = ch.dataset.fmt;
+  });
+});
+$('doExportBtn').addEventListener('click', ()=>{
+  exportFmt==='csv' ? exportCSV() : exportXLSX();
+});
+
+document.querySelectorAll('[data-close]').forEach(el=>{
+  el.addEventListener('click', ()=>$(el.dataset.close).classList.remove('open'));
+});
+document.querySelectorAll('.overlay').forEach(ov=>{
+  ov.addEventListener('click', e=>{ if(e.target===ov) ov.classList.remove('open'); });
+});
+
+// ===== Init =====
+(async function init(){
+  loadUser();
+  categories = [...DEFAULT_CATEGORIES];
+  renderCatSelectRow(); renderManageCatList(); renderFilterCatOptions();
+  $('monthLabel').textContent = fmtMonth(currentDate);
+  $('monthLabel2').textContent = fmtMonth(currentDate);
+  $('exportMonth').value = fmtMonth(currentDate);
+
+  if(!FIREBASE_READY){
+    $('pwaBanner').innerHTML = `<div class="banner warn">
+      <strong>Firebase 尚未設定</strong><br>目前為預覽模式，可瀏覽介面但無法儲存資料。</div>`;
+    $('recordList').innerHTML = `<div class="empty-state">設定 Firebase 後，記錄會顯示在這裡</div>`;
+    return;
+  }
+
+  try{
+    await ensureDoc(["meta","categories"], { list: DEFAULT_CATEGORIES });
+    await ensureDoc(["meta","templates"],  { list: [] });
+    listenCategories(); listenTemplates(); listenRecords();
+  }catch(e){
+    console.error(e);
+    showToast("連線失敗："+(e.code||e.message));
+  }
+
+  const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+  if(isIOS) setTimeout(()=>showPwaBanner(false), 1500);
+
+  if(!userName) setTimeout(()=>{
+    $('userOverlay').classList.add('open');
+  }, 800);
+})();
+</script>
+</body>
+</html>
