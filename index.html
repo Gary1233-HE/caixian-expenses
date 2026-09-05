@@ -262,6 +262,17 @@
   }
   .spark-bar.current{background:var(--accent);}
   .spark-label{font-size:10px;color:var(--ink-soft);white-space:nowrap;}
+  .spark-bars.dense{gap:3px;}
+  .spark-bars.dense .spark-label{font-size:9px;}
+  .spark-bars.dense .spark-col{gap:4px;}
+  .spark-label.year{color:var(--ink);font-weight:700;}
+  .range-row{display:flex;gap:5px;}
+  .range-chip{
+    padding:4px 11px;border:1px solid var(--line);border-radius:14px;
+    font-size:11.5px;cursor:pointer;color:var(--ink-soft);
+    transition:all .15s;white-space:nowrap;
+  }
+  .range-chip.active{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:700;}
   .spark-val{font-size:9.5px;color:var(--ink-soft);font-family:'Space Mono',monospace;}
 
   /* FAB */
@@ -377,6 +388,48 @@
   .banner .x{cursor:pointer;font-size:17px;flex-shrink:0;line-height:1;}
 
   .loading-row{text-align:center;padding:24px;color:var(--ink-soft);font-size:13px;}
+
+  /* Bulk paste */
+  .bulk-textarea{
+    width:100%;min-height:160px;padding:11px 12px;
+    border:1px solid var(--line);border-radius:8px;
+    font-size:14px;font-family:'Space Mono',monospace;line-height:1.75;
+    resize:vertical;color:var(--ink);background:var(--bg);
+  }
+  .bulk-textarea:focus{outline:none;border-color:var(--accent);}
+  .bulk-row{
+    display:flex;align-items:center;gap:9px;
+    padding:9px 10px;border:1px solid var(--line);
+    border-radius:8px;margin-bottom:6px;
+  }
+  .bulk-row.off{opacity:.38;}
+  .bulk-chk{width:17px;height:17px;flex-shrink:0;accent-color:var(--accent);cursor:pointer;}
+  .bulk-name{flex:1;min-width:0;font-size:13.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .bulk-name small{color:var(--ink-soft);font-size:11px;margin-left:5px;}
+  .bulk-amt{
+    width:94px;padding:6px 8px;border:1px solid var(--line);border-radius:6px;
+    font-family:'Space Mono',monospace;font-size:13px;font-weight:700;
+    text-align:right;flex-shrink:0;color:var(--ink);background:var(--bg);
+  }
+  .bulk-amt:focus{outline:none;border-color:var(--accent);}
+  .bulk-summary{
+    display:flex;justify-content:space-between;align-items:center;
+    padding:13px 15px;background:var(--card);border-radius:9px;
+    margin:14px 0;font-size:13px;gap:10px;
+  }
+  .bulk-summary b{font-family:'Space Mono',monospace;font-size:17px;color:var(--ink);}
+  .bulk-skip{
+    font-size:12px;padding:9px 12px;background:var(--warn-soft);
+    color:var(--warn);border-radius:8px;margin-bottom:10px;line-height:1.65;
+  }
+  .bulk-opts{display:flex;gap:9px;margin:12px 0;flex-wrap:wrap;}
+  .bulk-opts > div{flex:1;min-width:140px;}
+  .bulk-opts label{display:block;font-size:11.5px;color:var(--ink-soft);margin-bottom:5px;}
+  .bulk-opts input,.bulk-opts select{
+    width:100%;padding:9px 10px;border:1px solid var(--line);border-radius:8px;
+    font-size:14px;font-family:inherit;background:var(--bg);color:var(--ink);
+  }
+  .bulk-opts input:focus,.bulk-opts select:focus{outline:none;border-color:var(--accent);}
 </style>
 </head>
 <body>
@@ -384,7 +437,7 @@
 <div class="app">
   <div class="header">
     <div class="brand"><strong>採鮮農產行</strong> · 支出記錄</div>
-    <div class="user-chip" id="userChip">👤 <span id="userName">設定名字</span></div>
+    <div class="user-chip" id="userChip">👤 <span id="userName">選擇使用者</span></div>
   </div>
 
   <div id="pwaBanner"></div>
@@ -420,7 +473,7 @@
 
     <div class="section-title">
       <span>明細</span>
-      <span class="link-btn" id="manageTplBtn">管理範本</span>
+      <span><span class="link-btn" id="bulkPasteBtn">批次貼上</span><span style="color:var(--line);margin:0 8px;">|</span><span class="link-btn" id="manageTplBtn">管理範本</span></span>
     </div>
     <div class="search-bar">
       <input type="text" class="search-input" id="searchInput" placeholder="搜尋備註、分類、輸入者…">
@@ -441,7 +494,15 @@
     </div>
 
     <div class="spark-wrap">
-      <div class="spark-title">近 6 個月總支出</div>
+      <div class="spark-title" style="display:flex;justify-content:space-between;align-items:center;gap:10px;">
+        <span id="sparkTitle">近 6 個月總支出</span>
+        <div class="range-row" id="rangeRow">
+          <div class="range-chip" data-n="3">3</div>
+          <div class="range-chip active" data-n="6">6</div>
+          <div class="range-chip" data-n="12">12</div>
+          <div class="range-chip" data-n="24">24</div>
+        </div>
+      </div>
       <div class="spark-bars" id="sparkBars"></div>
     </div>
 
@@ -567,22 +628,35 @@
   </div>
 </div>
 
+<!-- Bulk paste modal -->
+<div class="overlay" id="bulkOverlay">
+  <div class="sheet" style="max-width:580px;">
+    <div class="sheet-title">
+      <span>批次貼上</span>
+      <span class="sheet-close" data-close="bulkOverlay">×</span>
+    </div>
+    <div class="hint" style="margin-bottom:10px;">
+      一行一筆，貼上就好。第一行若是「7月薪資」這類標題，會自動判定月份與分類；沒有金額的行（例如標註離職）會自動略過。
+    </div>
+    <textarea id="bulkInput" class="bulk-textarea" placeholder="7月薪資&#10;阿興 17357&#10;阿后 17357&#10;心彤 （離職）&#10;阿潭 4281（新人）"></textarea>
+    <div class="btn-row" style="margin-top:10px;">
+      <button class="btn btn-ghost" id="bulkClearBtn">清空</button>
+      <button class="btn btn-primary" id="bulkParseBtn">解析</button>
+    </div>
+    <div id="bulkResult"></div>
+  </div>
+</div>
+
 <!-- User modal -->
 <div class="overlay" id="userOverlay">
   <div class="sheet">
     <div class="sheet-title">
-      <span>設定你的名字</span>
+      <span>選擇使用者</span>
       <span class="sheet-close" data-close="userOverlay">×</span>
     </div>
-    <div class="field">
-      <label>名字</label>
-      <input type="text" id="userInput" placeholder="例如：土豆、阿明">
-    </div>
+    <div class="chip-row" id="userChipRow" style="margin-bottom:14px;"></div>
     <div class="hint">
-      這個名字只存在這台裝置上，之後每筆你新增的記錄都會標上它，方便多人共用時分辨是誰輸入的。隨時可以改。
-    </div>
-    <div class="btn-row">
-      <button class="btn btn-primary" id="saveUserBtn">儲存</button>
+      選擇後，你新增的每筆記錄都會標上這個名字，方便分辨是誰輸入的。選擇只存在這台裝置上，隨時可點右上角切換。
     </div>
   </div>
 </div>
@@ -619,6 +693,7 @@ let selectedCatId = null;
 let userName = "";
 let exportScope = "month";
 let exportFmt = "xlsx";
+let monthsToShow = 6;
 let searchText = "";
 let filterCatId = "";
 
@@ -657,15 +732,230 @@ const catBudget = id => {
   return c && c.budget ? Number(c.budget) : null;
 };
 
+// ===== Bulk paste parser =====
+const CAT_KEYWORDS = [
+  [/薪資|薪水|工資|加班|獎金|勞健保|勞保|健保|人事|年終|紅包/, 'cat_labor'],
+  [/進貨|貨款|菜款|批發|調貨|叫貨|果菜/,                       'cat_purchase'],
+  [/油錢|加油|油料|運費|過路|停車|貨車|維修|保養|物流|配送|輪胎/,'cat_transport'],
+  [/租金|房租|水費|電費|冷藏|冷凍|設備|倉租/,                   'cat_venue'],
+  [/紙箱|塑膠袋|袋子|束帶|標籤|包材|耗材|清潔|膠帶/,            'cat_packaging'],
+  [/損耗|報廢|腐損|丟棄|退貨|壞掉/,                             'cat_loss'],
+  [/規費|抽成|過磅|手續費|刷卡|市場/,                           'cat_market'],
+  [/廣告|招待|贈品|行銷|推廣|樣品/,                             'cat_marketing'],
+  [/記帳|會計|保險|稅|電話|網路|文具|利息|軟體/,                'cat_admin'],
+];
+function guessCat(text){
+  for(const [re,id] of CAT_KEYWORDS) if(re.test(text)) return id;
+  return null;
+}
+function resolveCat(id){
+  if(id && categories.some(c=>c.id===id)) return id;
+  return categories[0]?.id || null;
+}
+const lastDayOf = (y,m) => new Date(y,m,0).getDate();
+
+function parseBulk(text){
+  const now = new Date();
+  const rows=[], skipped=[];
+  let headerLabel='', headerDate=null;
+
+  text.split(/\r?\n/).forEach(raw=>{
+    let s = raw.trim();
+    if(!s) return;
+    s = s.replace(/[０-９]/g, ch=>String.fromCharCode(ch.charCodeAt(0)-0xFEE0))
+         .replace(/（/g,'(').replace(/）/g,')')
+         .replace(/：/g,':').replace(/，/g,',').replace(/　/g,' ');
+
+    // 標題行（月份 + 名目，該行無其他數字）
+    const mh = s.match(/^(?:(\d{4})\s*年\s*)?(\d{1,2})\s*月\s*(.*)$/);
+    if(mh && !/\d/.test(mh[3])){
+      const mm = Number(mh[2]);
+      const y = mh[1] ? Number(mh[1]) : (mm > (now.getMonth()+1) ? now.getFullYear()-1 : now.getFullYear());
+      headerDate = `${y}-${String(mm).padStart(2,'0')}-${String(lastDayOf(y,mm)).padStart(2,'0')}`;
+      headerLabel = mh[3].trim();
+      return;
+    }
+
+    // 總計行、純符號行
+    if(/^(合計|總計|小計|總額|共計|total)/i.test(s) || !/[\u4e00-\u9fffA-Za-z0-9]/.test(s)){
+      skipped.push({ text:raw.trim(), reason:'非支出項目' }); return;
+    }
+
+    // 行首日期
+    let rowDate=null, hasOwnDate=false;
+    const md = s.match(/^(?:(\d{4})[\/\-.])?(\d{1,2})[\/\-.](\d{1,2})\s+(.*)$/);
+    if(md){
+      const y = md[1] ? Number(md[1]) : now.getFullYear();
+      rowDate = `${y}-${String(md[2]).padStart(2,'0')}-${String(md[3]).padStart(2,'0')}`;
+      hasOwnDate = true;
+      s = md[4].trim();
+    }
+
+    // 取最後一個數字當金額
+    const nums = s.match(/\d[\d,]*(?:\.\d+)?/g);
+    if(!nums){ skipped.push({ text:raw.trim(), reason:'沒有金額' }); return; }
+    const amtStr = nums[nums.length-1];
+    const amount = Number(amtStr.replace(/,/g,''));
+    if(!amount || amount<=0){ skipped.push({ text:raw.trim(), reason:'金額無效' }); return; }
+
+    const idx = s.lastIndexOf(amtStr);
+    let rest = (s.slice(0,idx)+' '+s.slice(idx+amtStr.length)).trim();
+    rest = rest.replace(/[:\-–—]+/g,' ').replace(/\s+/g,' ').trim();
+
+    let extra='';
+    const mp = rest.match(/\(([^)]*)\)/);
+    if(mp){ extra = mp[1].trim(); rest = rest.replace(/\([^)]*\)/,'').trim(); }
+
+    const name = rest || '(未命名)';
+    rows.push({
+      include:true, name, extra, amount,
+      date: rowDate, hasOwnDate,
+      categoryId: resolveCat(guessCat(headerLabel+' '+name))
+    });
+  });
+
+  return { rows, skipped, headerLabel, headerDate };
+}
+
+// ===== Bulk paste UI =====
+let bulkRows=[], bulkSkipped=[], bulkLabel='', bulkFallbackDate=null;
+
+function runBulkParse(){
+  const text = $('bulkInput').value;
+  if(!text.trim()) return showToast("請先貼上內容");
+  const r = parseBulk(text);
+  bulkRows = r.rows; bulkSkipped = r.skipped; bulkLabel = r.headerLabel;
+  bulkFallbackDate = r.headerDate || todayStr();
+  if(bulkRows.length===0){
+    $('bulkResult').innerHTML = `<div class="bulk-skip">解析不到任何金額，請確認每行都有數字（例如「阿興 17357」）。</div>`;
+    return;
+  }
+  renderBulkResult();
+}
+
+function renderBulkResult(){
+  const wrap = $('bulkResult');
+  const on = bulkRows.filter(r=>r.include);
+  const total = on.reduce((s,r)=>s+Number(r.amount||0),0);
+
+  wrap.innerHTML = `
+    ${bulkSkipped.length ? `<div class="bulk-skip">已略過 ${bulkSkipped.length} 行：${bulkSkipped.map(s=>s.text).join('、')}</div>` : ''}
+    <div class="bulk-opts">
+      <div>
+        <label>日期${bulkLabel?`（來自「${bulkLabel}」）`:''}</label>
+        <input type="date" id="bulkDate" value="${bulkFallbackDate}">
+      </div>
+      <div>
+        <label>分類（套用全部）</label>
+        <select id="bulkCat">${categories.map(c=>
+          `<option value="${c.id}" ${c.id===bulkRows[0]?.categoryId?'selected':''}>${c.name}</option>`
+        ).join('')}</select>
+      </div>
+    </div>
+    <div class="section-title" style="margin:14px 0 10px;">
+      <span>解析結果</span>
+      <span class="link-btn" id="bulkToggleAll">${on.length===bulkRows.length?'全部取消':'全部勾選'}</span>
+    </div>
+    <div id="bulkRowList">
+      ${bulkRows.map((r,i)=>`
+        <div class="bulk-row ${r.include?'':'off'}">
+          <input type="checkbox" class="bulk-chk" data-i="${i}" ${r.include?'checked':''}>
+          <div class="bulk-name">${r.name}${r.extra?`<small>${r.extra}</small>`:''}${r.hasOwnDate?`<small>${r.date}</small>`:''}</div>
+          <input type="number" class="bulk-amt" data-amt="${i}" value="${r.amount}">
+        </div>`).join('')}
+    </div>
+    <div class="bulk-summary">
+      <span>將新增 <b>${on.length}</b> 筆</span>
+      <span>合計 <b>$${fmtMoney(total)}</b></span>
+    </div>
+    <button class="btn btn-primary" id="bulkSaveBtn" style="width:100%;">確認新增 ${on.length} 筆</button>`;
+
+  $('bulkCat').addEventListener('change', e=>{
+    bulkRows.forEach(r=>r.categoryId=e.target.value);
+  });
+  $('bulkDate').addEventListener('change', e=>{ bulkFallbackDate = e.target.value; });
+  $('bulkToggleAll').addEventListener('click', ()=>{
+    const allOn = bulkRows.every(r=>r.include);
+    bulkRows.forEach(r=>r.include=!allOn);
+    renderBulkResult();
+  });
+  wrap.querySelectorAll('.bulk-chk').forEach(chk=>{
+    chk.addEventListener('change', ()=>{
+      bulkRows[chk.dataset.i].include = chk.checked;
+      renderBulkResult();
+    });
+  });
+  wrap.querySelectorAll('.bulk-amt').forEach(inp=>{
+    inp.addEventListener('change', ()=>{
+      bulkRows[inp.dataset.amt].amount = Number(inp.value)||0;
+      renderBulkResult();
+    });
+  });
+  $('bulkSaveBtn').addEventListener('click', doBulkSave);
+}
+
+async function doBulkSave(){
+  const rows = bulkRows.filter(r=>r.include && r.amount>0);
+  if(rows.length===0) return showToast("沒有勾選任何項目");
+  if(!FIREBASE_READY) return showToast("Firebase 尚未設定，無法儲存");
+
+  const btn = $('bulkSaveBtn');
+  btn.disabled = true; btn.textContent = "新增中…";
+
+  let ok=0, fail=0;
+  for(const r of rows){
+    const note = [bulkLabel, r.name, r.extra].filter(Boolean).join(' · ');
+    try{
+      await addDoc(collection(db,"expenses"), {
+        amount: Number(r.amount),
+        date: r.hasOwnDate ? r.date : bulkFallbackDate,
+        note,
+        categoryId: r.categoryId,
+        user: userName||"",
+        createdAt: Date.now()
+      });
+      ok++;
+    }catch(e){ console.error(e); fail++; }
+  }
+
+  showToast(`已新增 ${ok} 筆${fail?`，${fail} 筆失敗`:''}`);
+  $('bulkOverlay').classList.remove('open');
+  $('bulkInput').value=''; $('bulkResult').innerHTML='';
+  bulkRows=[]; bulkSkipped=[];
+
+  // 跳到這批記錄所屬月份
+  const d = new Date((rows[0].hasOwnDate ? rows[0].date : bulkFallbackDate)+"T00:00:00");
+  if(!isNaN(d)){ currentDate = new Date(d.getFullYear(), d.getMonth(), 1); }
+  renderMonthly(); renderTrend();
+}
+
 // ===== Local user =====
+const PRESET_USERS = ["順","昕","林"];
+
 function loadUser(){
   try{ userName = localStorage.getItem('cx_expense_user') || ""; }catch(e){ userName=""; }
-  $('userName').textContent = userName || "設定名字";
+  $('userName').textContent = userName || "選擇使用者";
+  renderUserChips();
 }
 function saveUser(name){
-  userName = name.trim();
+  userName = (name||"").trim();
   try{ localStorage.setItem('cx_expense_user', userName); }catch(e){}
-  $('userName').textContent = userName || "設定名字";
+  $('userName').textContent = userName || "選擇使用者";
+  renderUserChips();
+}
+function renderUserChips(){
+  const row = $('userChipRow');
+  if(!row) return;
+  row.innerHTML = PRESET_USERS.map(n=>
+    `<div class="chip ${n===userName?'active':''}" data-user="${n}">${n}</div>`
+  ).join('');
+  row.querySelectorAll('[data-user]').forEach(ch=>{
+    ch.addEventListener('click', ()=>{
+      saveUser(ch.dataset.user);
+      $('userOverlay').classList.remove('open');
+      showToast(`已切換為「${ch.dataset.user}」`);
+    });
+  });
 }
 
 // ===== Firestore: categories =====
@@ -840,17 +1130,28 @@ function renderTrend(){
       <span class="delta ${cls}">${arrow} ${diff>0?'+':''}${fmtMoney(diff)}（${pct>0?'+':''}${pct.toFixed(1)}%）</span>`;
   }
 
-  // sparkline: last 6 months
+  // sparkline: 近 N 個月
+  const n = monthsToShow;
   const months=[];
-  for(let i=5;i>=0;i--) months.push(shiftMonth(ym,-i));
+  for(let i=n-1;i>=0;i--) months.push(shiftMonth(ym,-i));
   const vals = months.map(m=>sumOf(recordsOf(m)));
   const max = Math.max(...vals,1);
-  $('sparkBars').innerHTML = months.map((m,i)=>{
+  const dense = n > 6;
+
+  $('sparkTitle').textContent = `近 ${n} 個月總支出`;
+  const bars = $('sparkBars');
+  bars.className = 'spark-bars' + (dense?' dense':'');
+  bars.innerHTML = months.map((m,i)=>{
     const h = vals[i]/max*100;
+    const [yy,mm] = m.split('-');
+    let label, isYear=false;
+    if(!dense){ label = m.slice(2); }
+    else if(mm==='01' || i===0){ label = yy.slice(2)+'/'+Number(mm); isYear=true; }
+    else { label = Number(mm); }
     return `<div class="spark-col">
-      <span class="spark-val">${vals[i]>0?fmtMoney(vals[i]):''}</span>
-      <div class="spark-bar ${i===5?'current':''}" style="height:${h}%"></div>
-      <span class="spark-label">${m.slice(2)}</span>
+      ${dense?'':`<span class="spark-val">${vals[i]>0?fmtMoney(vals[i]):''}</span>`}
+      <div class="spark-bar ${i===n-1?'current':''}" style="height:${h}%" title="${m} $${fmtMoney(vals[i])}"></div>
+      <span class="spark-label ${isYear?'year':''}">${label}</span>
     </div>`;
   }).join('');
 
@@ -1239,6 +1540,16 @@ function goToday(){ currentDate = new Date(); renderMonthly(); renderTrend(); }
 ['nextMonth','nextMonth2'].forEach(id=>$(id).addEventListener('click',()=>changeMonth(1)));
 ['todayBtn','todayBtn2'].forEach(id=>$(id).addEventListener('click', goToday));
 
+document.querySelectorAll('#rangeRow .range-chip').forEach(ch=>{
+  ch.addEventListener('click', ()=>{
+    document.querySelectorAll('#rangeRow .range-chip').forEach(x=>x.classList.remove('active'));
+    ch.classList.add('active');
+    monthsToShow = Number(ch.dataset.n);
+    try{ localStorage.setItem('cx_months_range', monthsToShow); }catch(e){}
+    renderTrend();
+  });
+});
+
 // ===== Bindings =====
 $('addBtn').addEventListener('click', openAddRecord);
 $('saveRecordBtn').addEventListener('click', saveRecord);
@@ -1248,16 +1559,17 @@ $('useTplBtn').addEventListener('click', ()=>$('tplOverlay').classList.add('open
 $('saveAsTplBtn').addEventListener('click', saveAsTemplate);
 $('manageCatsBtn').addEventListener('click', ()=>$('catOverlay').classList.add('open'));
 $('manageTplBtn').addEventListener('click', ()=>$('tplOverlay').classList.add('open'));
+$('bulkPasteBtn').addEventListener('click', ()=>$('bulkOverlay').classList.add('open'));
+$('bulkParseBtn').addEventListener('click', runBulkParse);
+$('bulkClearBtn').addEventListener('click', ()=>{
+  $('bulkInput').value=''; $('bulkResult').innerHTML='';
+  bulkRows=[]; bulkSkipped=[];
+});
 $('addCatBtn').addEventListener('click', addNewCategory);
 
 $('userChip').addEventListener('click', ()=>{
-  $('userInput').value = userName;
+  renderUserChips();
   $('userOverlay').classList.add('open');
-});
-$('saveUserBtn').addEventListener('click', ()=>{
-  saveUser($('userInput').value);
-  $('userOverlay').classList.remove('open');
-  showToast("已設定名字");
 });
 
 $('searchInput').addEventListener('input', e=>{
@@ -1295,6 +1607,14 @@ document.querySelectorAll('.overlay').forEach(ov=>{
 // ===== Init =====
 (async function init(){
   loadUser();
+  try{
+    const saved = Number(localStorage.getItem('cx_months_range'));
+    if([3,6,12,24].includes(saved)){
+      monthsToShow = saved;
+      document.querySelectorAll('#rangeRow .range-chip').forEach(x=>
+        x.classList.toggle('active', Number(x.dataset.n)===saved));
+    }
+  }catch(e){}
   categories = [...DEFAULT_CATEGORIES];
   renderCatSelectRow(); renderManageCatList(); renderFilterCatOptions();
   $('monthLabel').textContent = fmtMonth(currentDate);
