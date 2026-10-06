@@ -430,6 +430,31 @@
     font-size:14px;font-family:inherit;background:var(--bg);color:var(--ink);
   }
   .bulk-opts input:focus,.bulk-opts select:focus{outline:none;border-color:var(--accent);}
+
+  /* ===== Payroll (工資) ===== */
+  .pay-hide{display:none !important;}
+  .pay-grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+  .pay-big{font-family:'Space Mono',monospace !important;font-size:22px !important;font-weight:700;text-align:center;}
+  .pay-otrow{display:flex;gap:8px;align-items:center;margin-bottom:8px;}
+  .pay-otrow input{
+    flex:1;min-width:0;padding:10px;border:1px solid var(--line);border-radius:8px;
+    font-size:15px;font-family:inherit;text-align:center;background:var(--bg);color:var(--ink);
+  }
+  .pay-otrow input:focus{outline:none;border-color:var(--accent);}
+  .pay-x{color:var(--warn);cursor:pointer;font-size:20px;padding:0 6px;line-height:1;}
+  .pay-result{
+    border:1px solid var(--line);border-radius:var(--radius);padding:18px;
+    text-align:center;background:var(--accent-soft);margin:14px 0;
+  }
+  .pay-amt{font-family:'Space Mono',monospace;font-size:30px;font-weight:700;}
+  .pay-sub{font-size:12px;color:var(--ink-soft);margin-top:3px;}
+  .pay-break{margin-top:10px;text-align:left;font-size:12.5px;}
+  .pay-break div{display:flex;justify-content:space-between;gap:10px;padding:4px 0;border-bottom:1px dashed var(--line);}
+  .pay-break div:last-child{border-bottom:none;}
+  .pay-break span{color:var(--ink-soft);}
+  .pay-staff-block{border:1px solid var(--line);border-radius:10px;padding:12px;margin-bottom:10px;}
+  .pay-staff-block .field{margin-bottom:10px;}
+  .pay-warn{font-size:12px;color:var(--warn);margin-top:6px;}
 </style>
 </head>
 <body>
@@ -445,6 +470,7 @@
   <div class="tabs">
     <div class="tab active" data-view="monthly">本月</div>
     <div class="tab" data-view="trend">趨勢比較</div>
+    <div class="tab" data-view="payroll">工資</div>
     <div class="tab" data-view="export">匯出</div>
   </div>
 
@@ -514,6 +540,79 @@
 
     <div class="section-title"><span>分類趨勢（本月 vs 上月）</span></div>
     <div id="trendTableWrap"></div>
+  </div>
+
+  <!-- ===== Payroll view ===== -->
+  <div class="view" id="view-payroll">
+    <div class="month-bar">
+      <div class="month-nav">
+        <div class="month-btn" id="payPrev">‹</div>
+        <div class="month-label mono" id="payMonthLabel">—</div>
+        <div class="month-btn" id="payNext">›</div>
+      </div>
+      <div class="link-btn" id="payStaffBtn">管理人員</div>
+    </div>
+
+    <div class="total-card">
+      <div class="total-label">本月工資合計（已寫入人事成本）</div>
+      <div class="total-amount mono"><sup>NT$</sup><span id="payTotal">0</span></div>
+      <div class="total-meta" id="payMeta">尚無記錄</div>
+    </div>
+
+    <div class="section-title"><span>計算工資</span></div>
+    <div class="chip-row" id="payChips" style="margin-bottom:14px;"></div>
+
+    <div id="payForm">
+      <div id="payHourBox">
+        <div class="pay-grid2">
+          <div class="field"><label>當月總工時 · 時</label><input class="amount-input pay-big" type="number" id="payHH" inputmode="numeric" min="0" placeholder="104"></div>
+          <div class="field"><label>分</label><input class="amount-input pay-big" type="number" id="payMM" inputmode="numeric" min="0" placeholder="30"></div>
+        </div>
+        <div class="hint" style="margin-top:-6px;margin-bottom:12px;">把紙本卡片當月時數加總後填入，分鐘核實不進位。</div>
+      </div>
+
+      <div id="payDayBox" class="pay-hide">
+        <div class="field"><label>當月總天數</label><input class="amount-input pay-big" type="number" id="payDD" inputmode="decimal" min="0" step="0.5" placeholder="22"></div>
+        <div class="hint" style="margin-top:-6px;margin-bottom:12px;">半天可填 0.5，例如 22.5。</div>
+      </div>
+
+      <div id="payFullBox" class="pay-hide">
+        <div class="pay-grid2">
+          <div class="field"><label>西螺趟數</label><input class="amount-input pay-big" type="number" id="payTrips" inputmode="numeric" min="0" placeholder="25"></div>
+          <div></div>
+        </div>
+        <div class="pay-grid2">
+          <div class="field"><label>超時 · 時</label><input class="amount-input pay-big" type="number" id="payOtHH" inputmode="numeric" min="0" placeholder="14"></div>
+          <div class="field"><label>分</label><input class="amount-input pay-big" type="number" id="payOtMM" inputmode="numeric" min="0" placeholder="0"></div>
+        </div>
+        <div class="hint" style="margin-top:-6px;margin-bottom:12px;">底薪與固定補貼在「管理人員」設定，這裡只填當月變動的數字。</div>
+      </div>
+
+      <div id="payOtBox" class="field">
+        <label>加班（可多筆，固定 1 倍；不含在上面總工時內）</label>
+        <div id="payOtRows"></div>
+        <button class="btn btn-ghost btn-sm" id="payAddOt" type="button" style="width:100%;">＋ 加一筆加班</button>
+        <div class="hint">日薪的人以 日薪 ÷ 8 當時薪。</div>
+      </div>
+
+      <div class="pay-result">
+        <div class="pay-amt" id="payAmt">$0</div>
+        <div class="pay-sub" id="payLabel">—</div>
+        <div class="pay-break" id="payBreak"></div>
+      </div>
+
+      <button class="btn btn-primary" id="paySave" style="width:100%;">存入本月並寫入支出</button>
+      <div class="hint" id="payDupHint" style="text-align:center;margin-top:8px;"></div>
+    </div>
+
+    <div class="section-title"><span>本月工資明細</span></div>
+    <div class="record-list" id="payList"><div class="empty-state">尚無記錄</div></div>
+
+    <div class="spark-wrap" style="margin-top:22px;">
+      <div class="spark-title">人事成本走勢（工資記錄，近 12 個月）</div>
+      <div class="spark-bars dense" id="paySpark"></div>
+      <div class="hint" id="paySparkMeta" style="margin-top:10px;"></div>
+    </div>
   </div>
 
   <!-- ===== Export view ===== -->
@@ -661,13 +760,30 @@
   </div>
 </div>
 
+<!-- Payroll staff modal -->
+<div class="overlay" id="payStaffOverlay">
+  <div class="sheet">
+    <div class="sheet-title">
+      <span>工資 · 管理人員</span>
+      <span class="sheet-close" data-close="payStaffOverlay">×</span>
+    </div>
+    <div id="payStaffList"></div>
+    <button class="btn btn-ghost" id="payAddStaff" type="button" style="width:100%;">＋ 新增人員</button>
+    <div class="hint" style="margin-top:12px;">
+      時薪、日薪的人填單價；正職填底薪、補貼、每趟加給。欄位離開輸入框後自動儲存。<br>
+      115年基本工資：月薪 29,500、時薪 196 元。
+    </div>
+    <div class="btn-row"><button class="btn btn-primary" data-close="payStaffOverlay">完成</button></div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import {
   getFirestore, collection, addDoc, updateDoc, deleteDoc,
-  doc, onSnapshot, query, orderBy, setDoc, getDoc
+  doc, onSnapshot, query, orderBy, setDoc, getDoc, writeBatch
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 // ===== Firebase =====
@@ -1530,6 +1646,15 @@ document.querySelectorAll('.tab').forEach(tab=>{
   });
 });
 
+// ===== Payroll tab hook =====
+document.querySelectorAll('.tab').forEach(tab=>{
+  tab.addEventListener('click', ()=>{
+    const isPay = tab.dataset.view==='payroll';
+    $('addBtn').style.display = isPay ? 'none' : '';
+    if(isPay) Payroll.show();
+  });
+});
+
 // ===== Month nav =====
 function changeMonth(delta){
   currentDate = new Date(currentDate.getFullYear(), currentDate.getMonth()+delta, 1);
@@ -1604,6 +1729,362 @@ document.querySelectorAll('.overlay').forEach(ov=>{
   ov.addEventListener('click', e=>{ if(e.target===ov) ov.classList.remove('open'); });
 });
 
+// ===== Payroll (工資) =====
+const Payroll = (function(){
+  let staff = [], recs = [], cur = null, otRows = [];
+  const pad2 = n => String(n).padStart(2,'0');
+  const esc = s => String(s==null?'':s).replace(/[&<>"']/g, ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+  const uid = () => Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+  const lastDay = ym => { const [y,m]=ym.split('-').map(Number); return `${ym}-${pad2(new Date(y,m,0).getDate())}`; };
+  const hm = mins => { const h=Math.floor(mins/60), m=Math.round(mins%60); return h+' 小時'+(m?' '+m+' 分':''); };
+  const money = n => '$'+fmtMoney(n);
+  // 月初（15 號前）多半是在結上個月的薪水，預設帶上個月
+  function defaultYm(){ const d=new Date(); const ym=fmtMonth(d); return d.getDate()<=15 ? shiftMonth(ym,-1) : ym; }
+  let ym = defaultYm();
+
+  const laborCat = () => {
+    const c = categories.find(x=>x.id==='cat_labor') || categories.find(x=>x.name==='人事成本');
+    return c ? c.id : 'cat_labor';
+  };
+  const curStaff = () => staff.find(s=>s.id===cur);
+  const typeLabel = s => s.type==='full' ? '正職' : s.type==='day' ? '$'+s.rate+'/天' : '$'+s.rate+'/時';
+  const newStaff = () => ({ id:uid(), name:'', type:'hour', rate:196, base:0, sub1:0, sub2:0, tripRate:0, divisor:240 });
+  const saveStaff = () => setDoc(doc(db,'meta','payrollStaff'), { list: staff });
+
+  // ---------- 計算 ----------
+  const otRowMins = o => (parseInt(o.h,10)||0)*60 + (parseInt(o.m,10)||0);
+  function calcOt(st){
+    const base = st.type==='day' ? (st.rate||0)/8 : (st.rate||0);
+    const parts=[]; let pay=0, total=0;
+    otRows.forEach(o=>{
+      const mins = otRowMins(o);
+      if(mins<=0 || !base) return;
+      const p = mins/60*base;
+      pay+=p; total+=mins;
+      parts.push({ l:`加班 ${hm(mins)} × $${Math.round(base*100)/100}`, a:p });
+    });
+    return { pay, parts, mins:total };
+  }
+  function calcFull(s, trips, otMins){
+    const parts=[]; let pay=0;
+    if(s.base){ parts.push({l:'底薪',a:s.base}); pay+=s.base; }
+    if(s.sub1){ parts.push({l:'勞健保補貼',a:s.sub1}); pay+=s.sub1; }
+    if(s.sub2){ parts.push({l:'誤餐費',a:s.sub2}); pay+=s.sub2; }
+    const tp = (trips||0)*(s.tripRate||0);
+    if(tp){ parts.push({l:`西螺加給 ${trips} 趟 × $${s.tripRate}`,a:tp}); pay+=tp; }
+    const hr = (s.base||0)/(s.divisor||240);
+    const op = (otMins||0)/60*hr;
+    if(op){ parts.push({l:`加班 ${hm(otMins)} × $${Math.round(hr*100)/100}`,a:op}); pay+=op; }
+    return { pay, parts };
+  }
+  function formMins(){
+    let h=parseInt($('payHH').value,10)||0, m=parseInt($('payMM').value,10)||0;
+    if(m>59){ h+=Math.floor(m/60); m=m%60; $('payHH').value=h; $('payMM').value=m; }
+    return h*60+m;
+  }
+  function fullOtMins(){
+    let h=parseInt($('payOtHH').value,10)||0, m=parseInt($('payOtMM').value,10)||0;
+    if(m>59){ h+=Math.floor(m/60); m=m%60; $('payOtHH').value=h; $('payOtMM').value=m; }
+    return h*60+m;
+  }
+  function calcNow(){
+    const st = curStaff();
+    if(!st) return { pay:0, parts:[], label:'請先新增人員' };
+    if(st.type==='full'){
+      const r = calcFull(st, parseInt($('payTrips').value,10)||0, fullOtMins());
+      r.label = '正職月結';
+      return r;
+    }
+    const o = calcOt(st);
+    if(st.type==='day'){
+      const d = parseFloat($('payDD').value)||0;
+      const base = d*(st.rate||0);
+      const parts = base ? [{l:`${d} 天 × $${st.rate}`, a:base}] : [];
+      return { pay:base+o.pay, parts:parts.concat(o.parts),
+               label:`${d} 天${o.mins?' ＋ 加班 '+hm(o.mins):''}　@ $${st.rate}/天` };
+    }
+    const mins = formMins();
+    const base = mins/60*(st.rate||0);
+    const parts = base ? [{l:`${hm(mins)} × $${st.rate}`, a:base}] : [];
+    return { pay:base+o.pay, parts:parts.concat(o.parts),
+             label:`${hm(mins)}${o.mins?' ＋ 加班 '+hm(o.mins):''}　@ $${st.rate}/時` };
+  }
+
+  // ---------- 畫面 ----------
+  function renderForm(){
+    const st = curStaff(), t = st ? st.type : 'hour';
+    $('payHourBox').classList.toggle('pay-hide', t!=='hour');
+    $('payDayBox').classList.toggle('pay-hide', t!=='day');
+    $('payFullBox').classList.toggle('pay-hide', t!=='full');
+    $('payOtBox').classList.toggle('pay-hide', t==='full');
+    const r = calcNow();
+    $('payAmt').textContent = money(r.pay);
+    $('payLabel').textContent = r.label;
+    $('payBreak').innerHTML = r.parts.map(p=>`<div><span>${esc(p.l)}</span><b>${money(p.a)}</b></div>`).join('');
+    const ex = st && recs.find(x=>x.id===`${ym}_${st.id}`);
+    $('paySave').textContent = ex ? '更新本月並同步支出' : '存入本月並寫入支出';
+    $('payDupHint').textContent = ex ? `${ym} 已有 ${st.name} 的記錄 ${money(ex.pay)}，存檔會覆蓋（支出同步更新）` : '';
+  }
+
+  function drawOtRows(){
+    const box = $('payOtRows'); box.innerHTML='';
+    otRows.forEach((o,i)=>{
+      const row = document.createElement('div'); row.className='pay-otrow';
+      row.innerHTML = `<input type="number" inputmode="numeric" min="0" placeholder="時" value="${esc(o.h)}">
+        <input type="number" inputmode="numeric" min="0" placeholder="分" value="${esc(o.m)}">
+        <span class="pay-x">×</span>`;
+      const [h,m] = row.querySelectorAll('input');
+      h.addEventListener('input', ()=>{ o.h=h.value; renderForm(); });
+      m.addEventListener('input', ()=>{ o.m=m.value; renderForm(); });
+      row.querySelector('.pay-x').addEventListener('click', ()=>{ otRows.splice(i,1); drawOtRows(); renderForm(); });
+      box.appendChild(row);
+    });
+  }
+
+  function renderChips(){
+    const box = $('payChips');
+    if(!staff.length){
+      box.innerHTML = `<div class="chip dashed" id="payNoStaff">＋ 先到「管理人員」新增人員</div>`;
+      $('payNoStaff').addEventListener('click', openStaff);
+      return;
+    }
+    box.innerHTML = staff.map(s=>
+      `<div class="chip ${s.id===cur?'active':''}" data-id="${esc(s.id)}">${esc(s.name||'未命名')} <span style="opacity:.75;font-size:11px;">${esc(typeLabel(s))}</span></div>`
+    ).join('');
+    box.querySelectorAll('[data-id]').forEach(ch=>{
+      ch.addEventListener('click', ()=>{ cur=ch.dataset.id; loadForm(); renderChips(); });
+    });
+  }
+
+  // 切換人員／月份：已有記錄就帶回表單，沒有就清空
+  function loadForm(){
+    ['payHH','payMM','payDD','payTrips','payOtHH','payOtMM'].forEach(id=>$(id).value='');
+    otRows = [];
+    const st = curStaff();
+    const rec = st && recs.find(x=>x.id===`${ym}_${st.id}`);
+    if(rec){
+      if(st.type==='hour'){ $('payHH').value=Math.floor((rec.mins||0)/60); $('payMM').value=(rec.mins||0)%60; }
+      if(st.type==='day'){ $('payDD').value=rec.days||''; }
+      if(st.type==='full'){
+        $('payTrips').value=rec.trips||'';
+        $('payOtHH').value=Math.floor((rec.otMins||0)/60); $('payOtMM').value=(rec.otMins||0)%60;
+      }
+      otRows = (rec.ot||[]).map(o=>({ h:Math.floor(o.mins/60), m:o.mins%60 }));
+    }
+    drawOtRows(); renderForm();
+  }
+
+  function qtyText(r){
+    if(r.type==='full') return `${r.trips||0} 趟 ／ 加班 ${hm(r.otMins||0)}`;
+    const ot = (r.ot||[]).reduce((s,o)=>s+o.mins,0);
+    const base = r.type==='day' ? `${r.days||0} 天` : hm(r.mins||0);
+    return base + (ot?` ＋加班 ${hm(ot)}`:'');
+  }
+
+  function renderList(){
+    $('payMonthLabel').textContent = ym;
+    const list = recs.filter(r=>r.ym===ym).sort((a,b)=>b.pay-a.pay);
+    const total = list.reduce((s,r)=>s+(r.pay||0),0);
+    $('payTotal').textContent = fmtMoney(total);
+
+    const prevTotal = recs.filter(r=>r.ym===shiftMonth(ym,-1)).reduce((s,r)=>s+(r.pay||0),0);
+    let meta = list.length ? `${list.length} 人` : '尚無記錄';
+    if(list.length && prevTotal>0){
+      const diff = total-prevTotal, pct = diff/prevTotal*100;
+      const cls = Math.abs(pct)<0.05?'flat':(diff>0?'up':'down');
+      const arrow = Math.abs(pct)<0.05?'→':(diff>0?'↑':'↓');
+      meta += `　上月 <b>$${fmtMoney(prevTotal)}</b> <span class="delta ${cls}">${arrow} ${diff>0?'+':''}${fmtMoney(diff)}（${pct>0?'+':''}${pct.toFixed(1)}%）</span>`;
+    }
+    $('payMeta').innerHTML = meta;
+
+    const box = $('payList');
+    if(!list.length){ box.innerHTML = '<div class="empty-state">這個月還沒有工資記錄</div>'; return; }
+    box.innerHTML = list.map(r=>{
+      const detail = (r.type==='full' || (r.ot&&r.ot.length))
+        ? (r.parts||[]).map(p=>esc(p.l)).join('、')
+        : (r.type==='day' ? `$${r.rate}/天` : `$${r.rate}/時`);
+      return `<div class="record-row" data-key="${esc(r.id)}">
+        <div class="record-info">
+          <div class="record-tags"><span class="record-cat">${esc(r.name)}</span>${r.user?`<span class="record-user">${esc(r.user)}</span>`:''}</div>
+          <div class="record-note">${esc(qtyText(r))}</div>
+          <div class="record-note" style="font-size:11.5px;white-space:normal;">${detail}</div>
+        </div>
+        <div class="record-amount mono">${money(r.pay)}</div>
+        <span class="pay-x" data-del="${esc(r.id)}">×</span>
+      </div>`;
+    }).join('');
+    box.querySelectorAll('.record-row').forEach(row=>{
+      row.addEventListener('click', ()=>{
+        const rec = recs.find(x=>x.id===row.dataset.key);
+        if(rec){ cur=rec.staffId; loadForm(); renderChips(); $('payForm').scrollIntoView({behavior:'smooth',block:'start'}); }
+      });
+    });
+    box.querySelectorAll('[data-del]').forEach(x=>{
+      x.addEventListener('click', e=>{ e.stopPropagation(); removeRec(x.dataset.del); });
+    });
+  }
+
+  function renderTrend(){
+    const n=12, months=[];
+    for(let i=n-1;i>=0;i--) months.push(shiftMonth(ym,-i));
+    const vals = months.map(m=>recs.filter(r=>r.ym===m).reduce((s,r)=>s+(r.pay||0),0));
+    const max = Math.max(...vals,1);
+    $('paySpark').innerHTML = months.map((m,i)=>{
+      const [yy,mm] = m.split('-');
+      const label = (mm==='01'||i===0) ? yy.slice(2)+'/'+Number(mm) : Number(mm);
+      const isYear = (mm==='01'||i===0);
+      return `<div class="spark-col">
+        <div class="spark-bar ${i===n-1?'current':''}" style="height:${vals[i]/max*100}%" title="${m} $${fmtMoney(vals[i])}"></div>
+        <span class="spark-label ${isYear?'year':''}">${label}</span>
+      </div>`;
+    }).join('');
+    const nz = vals.filter(v=>v>0);
+    $('paySparkMeta').textContent = nz.length
+      ? `有記錄的月份平均 $${fmtMoney(nz.reduce((a,b)=>a+b,0)/nz.length)}／月；最高 $${fmtMoney(Math.max(...vals))}`
+      : '還沒有工資記錄';
+  }
+
+  function renderAll(){ renderChips(); renderForm(); renderList(); renderTrend(); }
+
+  // ---------- 存檔／刪除（同步寫入支出） ----------
+  async function saveCur(){
+    const st = curStaff();
+    if(!st) return showToast('請先到「管理人員」新增人員');
+    if(!st.name) return showToast('請先填人員姓名');
+    const r = calcNow();
+    const pay = Math.round(r.pay);
+    if(pay<=0) return showToast('金額為 0，請檢查輸入');
+    const key = `${ym}_${st.id}`;
+    const lab = laborCat();
+
+    if(!recs.some(x=>x.id===key)){
+      const dup = records.find(x=>!x.payrollKey && x.categoryId===lab && (x.date||'').startsWith(ym)
+        && (x.note||'').includes(st.name) && (x.note||'').includes('薪資'));
+      if(dup && !confirm(`${ym} 已經有一筆手動輸入的「${dup.note}」$${fmtMoney(dup.amount)}。\n繼續存會重複計入人事成本，建議先到「本月」刪掉那筆。\n仍要存嗎？`)) return;
+    }
+
+    const rec = {
+      ym, staffId:st.id, name:st.name, type:st.type,
+      mins: st.type==='hour' ? formMins() : 0,
+      days: st.type==='day' ? (parseFloat($('payDD').value)||0) : 0,
+      trips: st.type==='full' ? (parseInt($('payTrips').value,10)||0) : 0,
+      otMins: st.type==='full' ? fullOtMins() : 0,
+      ot: st.type==='full' ? [] : otRows.map(otRowMins).filter(m=>m>0).map(m=>({mins:m})),
+      rate: st.rate||0, pay,
+      parts: r.parts.map(p=>({ l:p.l, a:Math.round(p.a) })),
+      user: userName||'', updatedAt: Date.now()
+    };
+    const btn = $('paySave'); btn.disabled=true;
+    try{
+      const batch = writeBatch(db);
+      batch.set(doc(db,'payroll',key), rec);
+      batch.set(doc(db,'expenses','pay_'+key), {
+        amount: pay, date: lastDay(ym), note: '薪資 · '+st.name,
+        categoryId: lab, user: userName||'', createdAt: Date.now(), payrollKey: key
+      });
+      await batch.commit();
+      showToast(`已存入 ${st.name} ${money(pay)}，並寫入人事成本`);
+    }catch(e){ console.error(e); showToast('儲存失敗：'+(e.code||e.message)); }
+    btn.disabled=false;
+  }
+
+  async function removeRec(key){
+    const rec = recs.find(x=>x.id===key); if(!rec) return;
+    if(!confirm(`刪除 ${rec.ym} ${rec.name} 的工資記錄 ${money(rec.pay)}？\n人事成本裡對應的那筆支出也會一起刪除。`)) return;
+    try{
+      const batch = writeBatch(db);
+      batch.delete(doc(db,'payroll',key));
+      batch.delete(doc(db,'expenses','pay_'+key));
+      await batch.commit();
+      showToast('已刪除');
+    }catch(e){ console.error(e); showToast('刪除失敗：'+(e.code||e.message)); }
+  }
+
+  // ---------- 管理人員 ----------
+  function renderStaffList(){
+    const box = $('payStaffList'); box.innerHTML='';
+    if(!staff.length) box.innerHTML = '<div class="empty-state" style="margin-bottom:12px;">還沒有人員，按下方新增</div>';
+    staff.forEach((s,i)=>{
+      const full = s.type==='full';
+      const num = (k,label)=>`<div class="field"><label>${label}</label><input type="number" inputmode="numeric" data-k="${k}" value="${s[k]||''}"></div>`;
+      const d = document.createElement('div'); d.className='pay-staff-block';
+      d.innerHTML = `
+        <div class="field"><label>姓名</label><input data-k="name" value="${esc(s.name)}" placeholder="姓名"></div>
+        <div class="pay-grid2">
+          <div class="field"><label>計薪方式</label>
+            <select data-k="type">
+              <option value="hour" ${s.type==='hour'?'selected':''}>時薪</option>
+              <option value="day"  ${s.type==='day'?'selected':''}>日薪</option>
+              <option value="full" ${full?'selected':''}>正職</option>
+            </select></div>
+          ${full?'<div></div>':num('rate', s.type==='day'?'日薪':'時薪')}
+        </div>
+        ${full?`<div class="pay-grid2">${num('base','底薪')}${num('sub1','勞健保補貼')}${num('sub2','誤餐費')}${num('tripRate','西螺每趟')}${num('divisor','時薪換算除數')}<div></div></div>
+        <div class="hint">加班費＝底薪 ÷ 除數 × 超時時數（1 倍）。</div>`:''}
+        <div class="btn-row" style="margin-top:8px;"><button class="btn btn-danger btn-sm" data-del type="button">刪除</button></div>`;
+      d.querySelectorAll('[data-k]').forEach(el=>{
+        el.addEventListener('change', ()=>{
+          const k = el.dataset.k;
+          if(k==='name') s.name = el.value.trim();
+          else if(k==='type'){
+            s.type = el.value;
+            if(s.type==='full'){ s.base=s.base||0; s.sub1=s.sub1||0; s.sub2=s.sub2||0; s.tripRate=s.tripRate||0; s.divisor=s.divisor||240; }
+          }
+          else if(k==='divisor') s.divisor = parseInt(el.value,10)||240;
+          else s[k] = parseInt(el.value,10)||0;
+          saveStaff().catch(e=>showToast('儲存失敗：'+(e.code||e.message)));
+          if(k==='type') renderStaffList();
+          renderChips(); renderForm();
+        });
+      });
+      d.querySelector('[data-del]').addEventListener('click', ()=>{
+        if(!confirm(`刪除「${s.name||'未命名'}」？已存的工資記錄不會被刪。`)) return;
+        staff.splice(i,1);
+        if(cur===s.id) cur = staff.length?staff[0].id:null;
+        saveStaff().catch(e=>showToast('儲存失敗：'+(e.code||e.message)));
+        renderStaffList(); renderChips(); loadForm();
+      });
+      box.appendChild(d);
+    });
+  }
+  function openStaff(){ renderStaffList(); $('payStaffOverlay').classList.add('open'); }
+
+  // ---------- 事件 ----------
+  $('payPrev').addEventListener('click', ()=>{ ym=shiftMonth(ym,-1); loadForm(); renderList(); renderTrend(); });
+  $('payNext').addEventListener('click', ()=>{ ym=shiftMonth(ym,1);  loadForm(); renderList(); renderTrend(); });
+  $('payStaffBtn').addEventListener('click', openStaff);
+  $('payAddStaff').addEventListener('click', ()=>{
+    const s = newStaff(); staff.push(s); if(!cur) cur=s.id;
+    saveStaff().catch(e=>showToast('儲存失敗：'+(e.code||e.message)));
+    renderStaffList(); renderChips(); renderForm();
+    const ins = $('payStaffList').querySelectorAll('[data-k="name"]');
+    if(ins.length) ins[ins.length-1].focus();
+  });
+  $('payAddOt').addEventListener('click', ()=>{
+    otRows.push({h:'',m:''}); drawOtRows(); renderForm();
+    const ins = $('payOtRows').querySelectorAll('input');
+    if(ins.length>=2) ins[ins.length-2].focus();
+  });
+  ['payHH','payMM','payDD','payTrips','payOtHH','payOtMM'].forEach(id=>$(id).addEventListener('input', renderForm));
+  $('payHH').addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); $('payMM').focus(); } });
+  $('payOtHH').addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); $('payOtMM').focus(); } });
+  $('paySave').addEventListener('click', saveCur);
+
+  function listen(){
+    onSnapshot(doc(db,'meta','payrollStaff'), snap=>{
+      staff = snap.exists() ? (snap.data().list||[]) : [];
+      if(!staff.some(s=>s.id===cur)) cur = staff.length?staff[0].id:null;
+      renderChips(); renderForm();
+    });
+    onSnapshot(collection(db,'payroll'), snap=>{
+      recs = snap.docs.map(d=>({ id:d.id, ...d.data() }));
+      renderList(); renderTrend(); renderForm();
+    });
+  }
+  function show(){ $('payMonthLabel').textContent = ym; renderAll(); }
+  return { listen, show };
+})();
+
 // ===== Init =====
 (async function init(){
   loadUser();
@@ -1631,7 +2112,8 @@ document.querySelectorAll('.overlay').forEach(ov=>{
   try{
     await ensureDoc(["meta","categories"], { list: DEFAULT_CATEGORIES });
     await ensureDoc(["meta","templates"],  { list: [] });
-    listenCategories(); listenTemplates(); listenRecords();
+    await ensureDoc(["meta","payrollStaff"], { list: [] });
+    listenCategories(); listenTemplates(); listenRecords(); Payroll.listen();
   }catch(e){
     console.error(e);
     showToast("連線失敗："+(e.code||e.message));
