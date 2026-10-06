@@ -2004,8 +2004,8 @@ const Payroll = (function(){
   function renderStaffList(){
     const box = $('payStaffList'); box.innerHTML='';
     if(!staff.length) box.innerHTML = '<div class="empty-state" style="margin-bottom:12px;">還沒有人員，按下方新增</div>';
-    staff.forEach((s,i)=>{
-      const full = s.type==='full';
+    staff.forEach((s0)=>{
+      const s = s0, sid = s0.id, full = s0.type==='full';
       const num = (k,label)=>`<div class="field"><label>${label}</label><input type="number" inputmode="numeric" data-k="${k}" value="${s[k]||''}"></div>`;
       const d = document.createElement('div'); d.className='pay-staff-block';
       d.innerHTML = `
@@ -2024,6 +2024,7 @@ const Payroll = (function(){
         <div class="btn-row" style="margin-top:8px;"><button class="btn btn-danger btn-sm" data-del type="button">刪除</button></div>`;
       d.querySelectorAll('[data-k]').forEach(el=>{
         el.addEventListener('change', ()=>{
+          const s = staff.find(x=>x.id===sid); if(!s) return;
           const k = el.dataset.k;
           if(k==='name') s.name = el.value.trim();
           else if(k==='type'){
@@ -2038,9 +2039,10 @@ const Payroll = (function(){
         });
       });
       d.querySelector('[data-del]').addEventListener('click', ()=>{
-        if(!confirm(`刪除「${s.name||'未命名'}」？已存的工資記錄不會被刪。`)) return;
-        staff.splice(i,1);
-        if(cur===s.id) cur = staff.length?staff[0].id:null;
+        const cs = staff.find(x=>x.id===sid); if(!cs) return;
+        if(!confirm(`刪除「${cs.name||'未命名'}」？已存的工資記錄不會被刪。`)) return;
+        staff = staff.filter(x=>x.id!==sid);
+        if(cur===sid) cur = staff.length?staff[0].id:null;
         saveStaff().catch(e=>showToast('儲存失敗：'+(e.code||e.message)));
         renderStaffList(); renderChips(); loadForm();
       });
